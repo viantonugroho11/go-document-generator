@@ -68,8 +68,8 @@ PostgreSQL (choose one approach):
 
 Kafka:
 - `KAFKA_BROKERS` (default: `127.0.0.1:9092`, comma-separated)
-- `KAFKA_CLIENT_ID` (default: `go-boilerplate-clean`)
-- `KAFKA_GROUP_ID` (default: `go-boilerplate-clean-group`)
+- `KAFKA_CLIENT_ID` (default: `go-document-generator`)
+- `KAFKA_GROUP_ID` (default: `go-document-generator-group`)
 - `KAFKA_TOPIC` (default: `user-events`)
 
 Redis:
@@ -96,8 +96,8 @@ go mod tidy
 export PORT=8080
 export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/appdb?sslmode=disable"
 export KAFKA_BROKERS="127.0.0.1:9092"
-export KAFKA_CLIENT_ID="go-boilerplate-clean"
-export KAFKA_GROUP_ID="go-boilerplate-clean-group"
+export KAFKA_CLIENT_ID="go-document-generator"
+export KAFKA_GROUP_ID="go-document-generator-group"
 export KAFKA_TOPIC="user-events"
 export REDIS_ADDR="127.0.0.1:6379"
 export REDIS_DB="0"
@@ -118,7 +118,7 @@ At startup the app will:
 ## Docker & Compose
 Build the image:
 ```bash
-docker build -t go-boilerplate-clean:latest .
+docker build -t go-document-generator:latest .
 ```
 
 Run with compose (app + Postgres + Zookeeper + Kafka + Redis):
@@ -210,4 +210,4 @@ Optional SQL:
 ## License
 MIT. Feel free to use and modify.
 
-# go-boilerplate-clean
+# go-document-generator

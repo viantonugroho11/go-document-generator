@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"go-boilerplate-clean/internal/entity/sample"
+	"go-document-generator/internal/entity/sample"
 
 	"gorm.io/gorm"
 )
@@ -25,11 +25,11 @@ type IOnStateTransition interface {
 }
 
 type stateMachineSample struct {
-	data        *sample.Sample
-	current     ISampleState
-	open        ISampleState
-	onHold      ISampleState
-	closed      ISampleState
+	data    *sample.Sample
+	current ISampleState
+	open    ISampleState
+	onHold  ISampleState
+	closed  ISampleState
 }
 
 type stateMachineFactorySample struct {
@@ -74,10 +74,9 @@ func (smf stateMachineFactorySample) NewStateMachine(ctx context.Context, curren
 
 	sm.data = current
 	if sm.data.ID == "" {
-		
+
 		return nil, fmt.Errorf("sample ID is required")
 	}
-
 
 	switch sm.data.Status {
 	case sample.SampleStatusOpen:

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"go-boilerplate-clean/internal/infrastructure/broker"
+	"go-document-generator/internal/infrastructure/broker"
 )
 
 // RegisterConsumers menyiapkan dan menjalankan consumer Kafka dengan handler contoh.

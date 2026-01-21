@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"go-boilerplate-clean/internal/config"
-	kafkainfra "go-boilerplate-clean/internal/infrastructure/broker/kafka"
-	kafkarunner "go-boilerplate-clean/internal/transport/event/kafka"
+	"go-document-generator/internal/config"
+	kafkainfra "go-document-generator/internal/infrastructure/broker/kafka"
+	kafkarunner "go-document-generator/internal/transport/event/kafka"
 
 	"github.com/IBM/sarama"
 	confLoader "github.com/viantonugroho11/go-config-library"
@@ -18,7 +18,7 @@ import (
 func main() {
 	// Load configuration (Consul/env/file)
 	cfg := config.Configuration{}
-	loader := confLoader.New("", "go-boilerplate-clean", os.Getenv("CONSUL_URL"),
+	loader := confLoader.New("", "go-document-generator", os.Getenv("CONSUL_URL"),
 		confLoader.WithConfigFileSearchPaths("./config"),
 	)
 	if err := loader.Load(&cfg); err != nil {

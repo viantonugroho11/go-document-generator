@@ -3,8 +3,8 @@ package apis
 import (
 	"github.com/labstack/echo/v4"
 
-	"go-boilerplate-clean/internal/transport/apis/handler"
-	"go-boilerplate-clean/internal/usecase/users"
+	"go-document-generator/internal/transport/apis/handler"
+	"go-document-generator/internal/usecase/users"
 )
 
 func RegisterRoutes(e *echo.Echo, userService users.UserService) {
@@ -21,5 +21,3 @@ func RegisterRoutes(e *echo.Echo, userService users.UserService) {
 	users.PUT("/:id", userHandler.Update)
 	users.DELETE("/:id", userHandler.Delete)
 }
-
-

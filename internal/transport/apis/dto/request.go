@@ -1,6 +1,6 @@
 package dto
 
-import "go-boilerplate-clean/internal/entity/users"
+import "go-document-generator/internal/entity/users"
 
 type CreateUserRequest struct {
 	Name  string `json:"name"`
@@ -18,5 +18,4 @@ func (r *CreateUserRequest) ToEntity() users.User {
 		Name:  r.Name,
 		Email: r.Email,
 	}
-}			
-
+}

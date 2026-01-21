@@ -9,14 +9,14 @@ import (
 	"strconv"
 	"time"
 
-	"go-boilerplate-clean/internal/config"
-	kafkainfra "go-boilerplate-clean/internal/infrastructure/broker/kafka"
-	redisinfra "go-boilerplate-clean/internal/infrastructure/cache/redis"
-	pginfra "go-boilerplate-clean/internal/infrastructure/database/postgres"
-	userpg "go-boilerplate-clean/internal/repository/user/postgres"
-	"go-boilerplate-clean/internal/transport/apis"
-	kafkarunner "go-boilerplate-clean/internal/transport/event/kafka"
-	usecaseusers "go-boilerplate-clean/internal/usecase/users"
+	"go-document-generator/internal/config"
+	kafkainfra "go-document-generator/internal/infrastructure/broker/kafka"
+	redisinfra "go-document-generator/internal/infrastructure/cache/redis"
+	pginfra "go-document-generator/internal/infrastructure/database/postgres"
+	userpg "go-document-generator/internal/repository/user/postgres"
+	"go-document-generator/internal/transport/apis"
+	kafkarunner "go-document-generator/internal/transport/event/kafka"
+	usecaseusers "go-document-generator/internal/usecase/users"
 
 	"github.com/IBM/sarama"
 	"github.com/labstack/echo/v4"
@@ -26,7 +26,7 @@ import (
 
 func main() {
 	cfg := config.Configuration{}
-	loader := confLoader.New("", "go-boilerplate-clean", os.Getenv("CONSUL_URL"),
+	loader := confLoader.New("", "go-document-generator", os.Getenv("CONSUL_URL"),
 		confLoader.WithConfigFileSearchPaths("./config"),
 	)
 	err := loader.Load(&cfg)

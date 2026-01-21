@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	userEntity "go-boilerplate-clean/internal/entity/users"
-	repouser "go-boilerplate-clean/internal/repository/user"
+	userEntity "go-document-generator/internal/entity/users"
+	repouser "go-document-generator/internal/repository/user"
 )
 
 type UserService interface {

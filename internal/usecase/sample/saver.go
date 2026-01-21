@@ -2,13 +2,12 @@ package sample
 
 import (
 	"context"
-	"go-boilerplate-clean/internal/config"
-	"go-boilerplate-clean/internal/entity/sample"
-	"go-boilerplate-clean/internal/usecase/sample/states"
+	"go-document-generator/internal/config"
+	"go-document-generator/internal/entity/sample"
+	"go-document-generator/internal/usecase/sample/states"
 )
 
 type (
-
 	StateMachineSample interface {
 		Do(ctx context.Context, update sample.Sample) (sample.Sample, error)
 	}

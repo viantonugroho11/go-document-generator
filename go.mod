@@ -1,4 +1,4 @@
-module go-boilerplate-clean
+module go-document-generator
 
 go 1.24.0
 

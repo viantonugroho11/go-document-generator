@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: go-boilerplate-clean:latest
+    image: go-document-generator:latest
     container_name: app
     environment:
       - PORT=8080
@@ -18,8 +18,8 @@ services:
       - DB_NAME=appdb
       - DB_SSLMODE=disable
       - KAFKA_BROKERS=kafka:9092
-      - KAFKA_CLIENT_ID=go-boilerplate-clean
-      - KAFKA_GROUP_ID=go-boilerplate-clean-group
+      - KAFKA_CLIENT_ID=go-document-generator
+      - KAFKA_GROUP_ID=go-document-generator-group
       - KAFKA_TOPIC=user-events
       - REDIS_ADDR=redis:6379
       - REDIS_DB=0
