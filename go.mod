@@ -8,8 +8,10 @@ require (
 	github.com/IBM/sarama v1.46.3
 	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.9.3
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/viantonugroho11/go-config-library v0.5.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
