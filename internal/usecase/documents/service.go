@@ -7,7 +7,7 @@ import (
 	entityDocuments "go-document-generator/internal/entity/documents"
 	entityTemplates "go-document-generator/internal/entity/documenttemplates"
 	entityDocumentVersions "go-document-generator/internal/entity/documenttemplateversions"
-	"go-document-generator/shared/validators"
+	"go-document-generator/internal/shared/validators"
 )
 
 type (

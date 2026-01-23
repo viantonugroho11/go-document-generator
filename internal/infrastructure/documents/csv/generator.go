@@ -5,7 +5,7 @@ import (
 	"context"
 	"text/template"
 
-	"go-document-generator/internal/shared"
+	"go-document-generator/internal/shared/csv"
 )
 
 // TmplCSVGenerator merender CSV menggunakan text/template (engine "tmpl").
