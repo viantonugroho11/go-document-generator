@@ -6,6 +6,7 @@ toolchain go1.24.11
 
 require (
 	github.com/IBM/sarama v1.46.3
+	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.9.3
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/redis/go-redis/v9 v9.17.2
