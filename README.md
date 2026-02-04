@@ -1,78 +1,78 @@
-# go-document-generator — Layanan Pembangkitan Dokumen (PDF/CSV)
+# go-document-generator — Document Generation Service (PDF/CSV)
 
-Repository ini adalah layanan generator dokumen berbasis template dengan pendekatan Clean Architecture. Fungsionalitas inti:
+This repository provides a template-driven document generation service following Clean Architecture. Core capabilities:
 
-- Pembangkitan dokumen dari template dan versi template
-- Validasi payload menggunakan JSON Schema (cache kompilasi schema dengan LRU)
-- Output saat ini: PDF (via wkhtmltopdf) dan CSV (via text/template)
-- Penyimpanan metadata dokumen di PostgreSQL
-- Publikasi event ke Kafka setelah dokumen dibuat
-- Redis sebagai klien cache/utility
-- HTTP server (Echo) untuk health check dan contoh CRUD `users`
+- Generate documents from templates and template versions
+- Validate payloads using JSON Schema (compiled schema cached with LRU)
+- Outputs supported: PDF (via wkhtmltopdf) and CSV (via text/template)
+- Store document metadata in PostgreSQL
+- Publish event to Kafka after a document is created
+- Redis as a cache/utility client
+- HTTP server (Echo) for health check and example `users` CRUD
 
-Catatan: endpoint HTTP untuk dokumen belum diekspos; usecase dan infrastruktur dokumen sudah tersedia dan siap di-wire.
+Note: HTTP endpoints for documents are not yet exposed; document usecases and infrastructure are implemented and ready to be wired.
 
-## Fitur Utama
+## Key Features
 - Template & Versioning:
-  - Entitas `document_templates`, `document_template_versions`, `documents`
-  - Validasi payload terhadap `schema` pada versi template menggunakan JSON Schema
-  - `sample_payload` untuk contoh data
+  - Entities: `document_templates`, `document_template_versions`, `documents`
+  - Payload validation against the version’s `schema` using JSON Schema
+  - `sample_payload` for example data
 - Generator:
-  - CSV: `text/template` dengan helper fungsi CSV
-  - PDF: `wkhtmltopdf` melalui `github.com/SebastiaanKlippert/go-wkhtmltopdf`
-  - Selector pemilihan generator berdasarkan `output_format` dan `engine`
-- Integrasi:
+  - CSV: `text/template` with CSV helper functions
+  - PDF: `wkhtmltopdf` via `github.com/SebastiaanKlippert/go-wkhtmltopdf`
+  - Generator selection based on `output_format` and `engine`
+- Integrations:
   - Kafka (producer/consumer)
   - Redis client
   - GORM + PostgreSQL
 - Clean Architecture:
-  - `usecase` terpisah dari `repository` dan `infrastructure`
-  - transport HTTP terpisah dari domain/usecase
+  - `usecase` separated from `repository` and `infrastructure`
+  - HTTP transport separated from domain/usecase
 
-## Struktur Folder
+## Folder Structure
 ```
 cmd/
-  app/                 # aplikasi HTTP utama (Echo)
-  consumer/            # worker/consumer Kafka
+  app/                 # main HTTP application (Echo)
+  consumer/            # Kafka worker/consumer
 internal/
-  config/              # konfigurasi (loader, DSN helpers)
-  entity/              # domain entities (documents, templates, users, dst.)
+  config/              # configuration (loader, DSN helpers)
+  entity/              # domain entities (documents, templates, users, etc.)
   infrastructure/
-    database/postgres/ # koneksi GORM + migrasi (AutoMigrate user)
+    database/postgres/ # GORM connection + migrations (AutoMigrate user)
     broker/kafka/      # producer & consumer wrappers
-    cache/redis/       # client Redis
+    cache/redis/       # Redis client
     documents/         # selector + generators (csv, pdf)
-  repository/          # interface & implementasi repos (gorm/postgres)
-  shared/              # util (csv helpers, validators)
+  repository/          # repository interfaces & implementations (gorm/postgres)
+  shared/              # utilities (csv helpers, validators)
   transport/
-    apis/              # router Echo + handler contoh users
+    apis/              # Echo router + example users handler
     event/kafka/       # runner consumer & example handler
   usecase/
-    documents/         # service untuk generate & create dokumen
-    users/             # contoh usecase users
-database/              # SQL definisi tabel dokumen & template
+    documents/         # services to generate & create documents
+    users/             # example users usecase
+database/              # SQL definitions for documents & templates
 configs/
-  config.yaml          # contoh konfigurasi (opsional)
+  config.yaml          # example configuration (optional)
 Dockerfile
 docker-compose.yml
 ```
 
-## Persyaratan
-- Go (sesuai `go.mod`)
+## Prerequisites
+- Go (as specified in `go.mod`)
 - PostgreSQL
-- Kafka broker (+ Zookeeper sesuai compose)
+- Kafka broker (+ Zookeeper as per compose)
 - Redis
-- wkhtmltopdf (dibutuhkan untuk output PDF)
-  - Instalasi macOS (Homebrew): `brew install wkhtmltopdf`
-  - Linux: instal paket `wkhtmltopdf` sesuai distro
+- wkhtmltopdf (required for PDF output)
+  - macOS (Homebrew): `brew install wkhtmltopdf`
+  - Linux: install the `wkhtmltopdf` package provided by your distro
 
-## Konfigurasi
-Konfigurasi dimuat menggunakan `github.com/viantonugroho11/go-config-library`. Sumber konfigurasi:
-- Consul (opsional) via env `CONSUL_URL` dengan app name `go-document-generator`
-- File lokal (path pencarian default di kode: `./config`)
+## Configuration
+Configuration is loaded using `github.com/viantonugroho11/go-config-library`. Sources:
+- Consul (optional) via `CONSUL_URL` with app name `go-document-generator`
+- Local file (default search path in code: `./config`)
 - Environment variables
 
-Contoh file lokal yang disertakan (`configs/config.yaml`):
+Sample local file included (`configs/config.yaml`):
 ```yaml
 port: "8080"
 
@@ -97,25 +97,25 @@ redispassword: ""
 redisdb: "0"
 ```
 
-Variabel lingkungan yang umum (lihat `docker-compose.yml`):
+Common environment variables (see `docker-compose.yml`):
 - `PORT` (default 8080)
-- `DATABASE_URL` ATAU `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`
+- `DATABASE_URL` OR `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`
 - `KAFKA_BROKERS`, `KAFKA_CLIENT_ID`, `KAFKA_GROUP_ID`, `KAFKA_TOPIC`
 - `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`
 
-Helper di kode:
-- `Configuration.PGDSN()` untuk DSN Postgres
-- `Configuration.KafkaBrokersList()` untuk daftar broker
+Helpers in code:
+- `Configuration.PGDSN()` for Postgres DSN
+- `Configuration.KafkaBrokersList()` to get the brokers list
 
-## Skema Database
-Definisi SQL ada di direktori `database/`:
+## Database Schema
+SQL definitions are under `database/`:
 - `document_templates.sql`
 - `document-template-versions.sql`
 - `documents.sql`
 
-Aplikasi saat ini melakukan `AutoMigrate` untuk tabel `users` (lihat `internal/infrastructure/database/postgres/connection.go`). Jalankan SQL di atas secara manual untuk skema dokumen, atau tambahkan migrasi otomatis sesuai preferensi Anda.
+The app currently performs `AutoMigrate` for the `users` table (see `internal/infrastructure/database/postgres/connection.go`). Run the SQL above manually for the document schema, or add automatic migrations per your preference.
 
-## Generator Dokumen
+## Document Generators
 Selector: `internal/infrastructure/documents/factory.go`
 - `output_format = "pdf"` → `WKHTMLToPDFGenerator`
 - `output_format = "csv"` → `TmplCSVGenerator`
@@ -134,13 +134,13 @@ bytes, contentType, err := pdfGen.Generate(ctx, htmlTemplateSource, payload)
 // contentType: "application/pdf"
 ```
 
-Contoh template CSV sederhana:
+Simple CSV template example:
 ```txt
 name,amount
 {{ .Name }},{{ .Amount }}
 ```
 
-Contoh template HTML sederhana untuk PDF:
+Simple HTML template example for PDF:
 ```html
 <!doctype html>
 <html><body>
@@ -149,37 +149,37 @@ Contoh template HTML sederhana untuk PDF:
 </body></html>
 ```
 
-## Usecase Dokumen
+## Document Usecases
 `internal/usecase/documents/service.go`:
-- `GenerateByVersionID(ctx, versionID, payload)` → menghasilkan bytes dokumen + `contentType` dan mengembalikan `DocumentTemplate` terkait
-- `Create(ctx, doc)` → validasi payload dengan `schema` versi template, simpan dokumen, lalu publish ke Kafka
+- `GenerateByVersionID(ctx, versionID, payload)` → returns document bytes + `contentType` and the associated `DocumentTemplate`
+- `Create(ctx, doc)` → validates payload with the template version’s `schema`, saves the document, then publishes to Kafka
 
-Validasi JSON Schema:
-- Implementasi: `internal/shared/validators/schema.go` menggunakan `github.com/santhosh-tekuri/jsonschema/v6`
-- Kompilasi schema dicache menggunakan LRU (`github.com/hashicorp/golang-lru/v2`)
+JSON Schema validation:
+- Implementation: `internal/shared/validators/schema.go` using `github.com/santhosh-tekuri/jsonschema/v6`
+- Compiled schema is cached using LRU (`github.com/hashicorp/golang-lru/v2`)
 
-## Menjalankan Secara Lokal
-Instal dependensi (opsional, `go mod tidy` akan menarik otomatis):
+## Run Locally
+Install dependencies (optional; `go mod tidy` will fetch automatically):
 ```bash
 go mod tidy
 ```
 
-Jalankan server HTTP:
+Run HTTP server:
 ```bash
 go run ./cmd/app
 ```
 
-Jalankan consumer Kafka (opsional):
+Run Kafka consumer (optional):
 ```bash
 go run ./cmd/consumer
 ```
 
-Pada startup server:
-- Inisialisasi koneksi GORM ke PostgreSQL
-- AutoMigrate tabel `users` (contoh)
-- Inisialisasi Redis client
-- Inisialisasi Kafka producer & consumer (consumer berjalan background)
-- Menyajikan HTTP server (Echo)
+On server startup:
+- Initialize GORM connection to PostgreSQL
+- AutoMigrate the `users` table (example)
+- Initialize Redis client
+- Initialize Kafka producer & consumer (consumer runs in background)
+- Serve HTTP (Echo)
 
 ## Docker & Compose
 Build image:
@@ -187,41 +187,41 @@ Build image:
 docker build -t go-document-generator:latest .
 ```
 
-Jalankan seluruh stack:
+Run the full stack:
 ```bash
 docker compose up -d --build
 ```
 
-Port:
+Ports:
 - App: `8080`
 - Postgres: `5432`
 - Kafka: `9092`
 - Redis: `6379`
 
-Pastikan `wkhtmltopdf` tersedia pada host/container bila output PDF digunakan.
+Ensure `wkhtmltopdf` is available on the host/container when PDF output is used.
 
-## HTTP Endpoints (Saat Ini)
+## HTTP Endpoints (Current)
 Base URL: `http://localhost:${PORT}`
 
-- `GET /healthz` → cek kesehatan
-- User CRUD (contoh):
+- `GET /healthz` → health check
+- User CRUD (example):
   - `POST /users`
   - `GET /users`
   - `GET /users/:id`
   - `PUT /users/:id`
   - `DELETE /users/:id`
 
-Endpoint terkait dokumen belum diekspos. Gunakan `usecase/documents` di dalam service atau tambahkan route/handler sesuai kebutuhan.
+Document-related endpoints are not yet exposed. Use `usecase/documents` within services or add routes/handlers as needed.
 
 ## Troubleshooting
-- Dependensi: jalankan `go mod tidy`
-- Koneksi Postgres: verifikasi DSN/env
-- Kafka tidak tersedia: cek `KAFKA_BROKERS` dan status broker
-- Redis gagal konek: cek `REDIS_ADDR`
-- PDF gagal dibuat: pastikan `wkhtmltopdf` terinstal dan dapat dieksekusi
+- Dependencies: run `go mod tidy`
+- Postgres connection: verify DSN/env
+- Kafka unavailable: check `KAFKA_BROKERS` and broker status
+- Redis connection failed: check `REDIS_ADDR`
+- PDF generation failed: ensure `wkhtmltopdf` is installed and executable
 
-## Lisensi
-MIT — silakan gunakan dan modifikasi sesuai kebutuhan.
+## License
+MIT — feel free to use and modify.
 
 # Go Boilerplate – Clean Architecture
 
@@ -435,4 +435,4 @@ Optional SQL:
 ## License
 MIT. Feel free to use and modify.
 
-# go-document-generator
+# go-document-generator (English)
