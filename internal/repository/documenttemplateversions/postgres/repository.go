@@ -20,14 +20,14 @@ func NewDocumentTemplateVersionsRepository(db *gorm.DB) repo.DocumentTemplateVer
 }
 
 func (r *documentTemplateVersionsRepository) Create(ctx context.Context, v entity.DocumentTemplateVersion) (entity.DocumentTemplateVersion, error) {
-	m := toModel(v)
+	m := model.FromEntity(v)
 	if m.CreatedAt.IsZero() {
 		m.CreatedAt = time.Now()
 	}
 	if err := r.db.WithContext(ctx).Create(&m).Error; err != nil {
 		return entity.DocumentTemplateVersion{}, err
 	}
-	return toEntity(m), nil
+	return m.ToEntity(), nil
 }
 
 func (r *documentTemplateVersionsRepository) GetByID(ctx context.Context, id int64) (entity.DocumentTemplateVersion, error) {
@@ -36,7 +36,7 @@ func (r *documentTemplateVersionsRepository) GetByID(ctx context.Context, id int
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return entity.DocumentTemplateVersion{}, errors.New("document template version not found")
 	}
-	return toEntity(m), err
+	return m.ToEntity(), err
 }
 
 func (r *documentTemplateVersionsRepository) List(ctx context.Context) ([]entity.DocumentTemplateVersion, error) {
@@ -46,7 +46,7 @@ func (r *documentTemplateVersionsRepository) List(ctx context.Context) ([]entity
 	}
 	res := make([]entity.DocumentTemplateVersion, 0, len(rows))
 	for _, m := range rows {
-		res = append(res, toEntity(m))
+		res = append(res, m.ToEntity())
 	}
 	return res, nil
 }
@@ -80,33 +80,5 @@ func (r *documentTemplateVersionsRepository) Delete(ctx context.Context, id int6
 		return errors.New("document template version not found")
 	}
 	return nil
-}
-
-func toModel(e entity.DocumentTemplateVersion) model.DocumentTemplateVersion {
-	return model.DocumentTemplateVersion{
-		ID:            e.ID,
-		TemplateID:    e.TemplateID,
-		Version:       e.Version,
-		Content:       e.Content,
-		Schema:        e.Schema,
-		SamplePayload: e.SamplePayload,
-		IsPublished:   e.IsPublished,
-		PublishedAt:   e.PublishedAt,
-		CreatedAt:     e.CreatedAt,
-	}
-}
-
-func toEntity(m model.DocumentTemplateVersion) entity.DocumentTemplateVersion {
-	return entity.DocumentTemplateVersion{
-		ID:            m.ID,
-		TemplateID:    m.TemplateID,
-		Version:       m.Version,
-		Content:       m.Content,
-		Schema:        m.Schema,
-		SamplePayload: m.SamplePayload,
-		IsPublished:   m.IsPublished,
-		PublishedAt:   m.PublishedAt,
-		CreatedAt:     m.CreatedAt,
-	}
 }
 
