@@ -13,9 +13,13 @@ import (
 	kafkainfra "go-document-generator/internal/infrastructure/broker/kafka"
 	redisinfra "go-document-generator/internal/infrastructure/cache/redis"
 	pginfra "go-document-generator/internal/infrastructure/database/postgres"
+	tmplpg "go-document-generator/internal/repository/documenttemplates/postgres"
+	verpg "go-document-generator/internal/repository/documenttemplateversions/postgres"
 	userpg "go-document-generator/internal/repository/user/postgres"
 	"go-document-generator/internal/transport/apis"
 	kafkarunner "go-document-generator/internal/transport/event/kafka"
+	usecasetmpl "go-document-generator/internal/usecase/documenttemplates"
+	usecasever "go-document-generator/internal/usecase/documenttemplateversions"
 	usecaseusers "go-document-generator/internal/usecase/users"
 
 	"github.com/IBM/sarama"
@@ -52,7 +56,11 @@ func main() {
 	}
 	userRepo := userpg.NewUserRepository(db)
 	userService := usecaseusers.NewUserService(userRepo)
-	apis.RegisterRoutes(e, userService)
+	tmplRepo := tmplpg.NewDocumentTemplatesRepository(db)
+	verRepo := verpg.NewDocumentTemplateVersionsRepository(db)
+	tmplService := usecasetmpl.NewTemplatesService(tmplRepo, verRepo)
+	verService := usecasever.NewVersionsService(verRepo)
+	apis.RegisterRoutes(e, userService, tmplService, verService)
 
 	// Init Redis
 	redisClient, err := redisinfra.NewClient(cfg.Redis.Addr, cfg.Redis.Password, strconv.Itoa(cfg.Redis.DB))

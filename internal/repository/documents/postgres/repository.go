@@ -21,7 +21,7 @@ func NewDocumentsRepository(db *gorm.DB) repo.DocumentsRepository {
 }
 
 func (r *documentsRepository) Create(ctx context.Context, doc entity.Document) (entity.Document, error) {
-	m := toModel(doc)
+	m := model.FromEntity(doc)
 	if m.CreatedAt.IsZero() {
 		m.CreatedAt = time.Now()
 	}
@@ -31,7 +31,7 @@ func (r *documentsRepository) Create(ctx context.Context, doc entity.Document) (
 	if err := r.db.WithContext(ctx).Create(&m).Error; err != nil {
 		return entity.Document{}, err
 	}
-	return toEntity(m), nil
+	return m.ToEntity(), nil
 }
 
 func (r *documentsRepository) GetByID(ctx context.Context, id int64) (entity.Document, error) {
@@ -40,7 +40,7 @@ func (r *documentsRepository) GetByID(ctx context.Context, id int64) (entity.Doc
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return entity.Document{}, errors.New("document not found")
 	}
-	return toEntity(m), err
+	return m.ToEntity(), err
 }
 
 func (r *documentsRepository) List(ctx context.Context) ([]entity.Document, error) {
@@ -50,35 +50,13 @@ func (r *documentsRepository) List(ctx context.Context) ([]entity.Document, erro
 	}
 	result := make([]entity.Document, 0, len(rows))
 	for _, m := range rows {
-		result = append(result, toEntity(m))
+		result = append(result, m.ToEntity())
 	}
 	return result, nil
 }
 
 func (r *documentsRepository) Update(ctx context.Context, doc entity.Document) (entity.Document, error) {
-	updates := map[string]any{
-		"request_id":       doc.RequestID,
-		"template_code":    doc.TemplateCode,
-		"template_version": doc.TemplateVersion,
-		"payload":          doc.Payload,
-		"metadata":         doc.Metadata,
-		"status":           doc.Status,
-		"error_message":    doc.ErrorMessage,
-		"file_name":        doc.FileName,
-		"file_path":        doc.FilePath,
-		"file_size":        doc.FileSize,
-		"checksum":         doc.Checksum,
-		"content_type":     doc.ContentType,
-		"store_to_dms":     doc.StoreToDMS,
-		"dms_document_id":  doc.DMSDocumentID,
-		"dms_status":       doc.DMSStatus,
-		"has_callback":     doc.HasCallback,
-		"callback_url":     doc.CallbackURL,
-		"callback_status":  doc.CallbackStatus,
-		"created_by":       doc.CreatedBy,
-		"processed_at":     doc.ProcessedAt,
-		"updated_at":       time.Now(),
-	}
+	updates := model.FromEntity(doc)
 	tx := r.db.WithContext(ctx).Model(&model.Document{}).Where("id = ?", doc.ID).Updates(updates)
 	if tx.Error != nil {
 		return entity.Document{}, tx.Error
@@ -86,7 +64,7 @@ func (r *documentsRepository) Update(ctx context.Context, doc entity.Document) (
 	if tx.RowsAffected == 0 {
 		return entity.Document{}, errors.New("document not found")
 	}
-	return doc, nil
+	return updates.ToEntity(), nil
 }
 
 func (r *documentsRepository) Delete(ctx context.Context, id int64) error {
@@ -100,59 +78,4 @@ func (r *documentsRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func toModel(e entity.Document) model.Document {
-	return model.Document{
-		ID:              e.ID,
-		RequestID:       e.RequestID,
-		TemplateCode:    e.TemplateCode,
-		TemplateVersion: e.TemplateVersion,
-		Payload:         e.Payload,
-		Metadata:        e.Metadata,
-		Status:          e.Status,
-		ErrorMessage:    e.ErrorMessage,
-		FileName:        e.FileName,
-		FilePath:        e.FilePath,
-		FileSize:        e.FileSize,
-		Checksum:        e.Checksum,
-		ContentType:     e.ContentType,
-		StoreToDMS:      e.StoreToDMS,
-		DMSDocumentID:   e.DMSDocumentID,
-		DMSStatus:       e.DMSStatus,
-		HasCallback:     e.HasCallback,
-		CallbackURL:     e.CallbackURL,
-		CallbackStatus:  e.CallbackStatus,
-		CreatedBy:       e.CreatedBy,
-		CreatedAt:       e.CreatedAt,
-		ProcessedAt:     e.ProcessedAt,
-		UpdatedAt:       e.UpdatedAt,
-	}
-}
-
-func toEntity(m model.Document) entity.Document {
-	return entity.Document{
-		ID:              m.ID,
-		RequestID:       m.RequestID,
-		TemplateCode:    m.TemplateCode,
-		TemplateVersion: m.TemplateVersion,
-		Payload:         m.Payload,
-		Metadata:        m.Metadata,
-		Status:          m.Status,
-		ErrorMessage:    m.ErrorMessage,
-		FileName:        m.FileName,
-		FilePath:        m.FilePath,
-		FileSize:        m.FileSize,
-		Checksum:        m.Checksum,
-		ContentType:     m.ContentType,
-		StoreToDMS:      m.StoreToDMS,
-		DMSDocumentID:   m.DMSDocumentID,
-		DMSStatus:       m.DMSStatus,
-		HasCallback:     m.HasCallback,
-		CallbackURL:     m.CallbackURL,
-		CallbackStatus:  m.CallbackStatus,
-		CreatedBy:       m.CreatedBy,
-		CreatedAt:       m.CreatedAt,
-		ProcessedAt:     m.ProcessedAt,
-		UpdatedAt:       m.UpdatedAt,
-	}
-}
 

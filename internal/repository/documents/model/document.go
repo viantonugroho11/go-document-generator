@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	entity "go-document-generator/internal/entity/documents"
+	"time"
+)
 
 type Document struct {
 	ID              int64              `gorm:"column:id;primaryKey"`
@@ -32,3 +35,41 @@ func (Document) TableName() string {
 	return "documents"
 }
 
+func (m *Document) ToEntity() entity.Document {
+	return entity.Document{
+		ID:              m.ID,
+		RequestID:       m.RequestID,
+		TemplateCode:    m.TemplateCode,
+		TemplateVersion: m.TemplateVersion,
+		Payload:         m.Payload,
+		Metadata:        m.Metadata,
+	}
+}
+
+func FromEntity(e entity.Document) Document {
+	return Document{
+		ID:              e.ID,
+		RequestID:       e.RequestID,
+		TemplateCode:    e.TemplateCode,
+		TemplateVersion: e.TemplateVersion,
+		Payload:         e.Payload,
+		Metadata:        e.Metadata,
+		Status:          e.Status,
+		ErrorMessage:    e.ErrorMessage,
+		FileName:        e.FileName,
+		FilePath:        e.FilePath,
+		FileSize:        e.FileSize,
+		Checksum:        e.Checksum,
+		ContentType:     e.ContentType,
+		StoreToDMS:      e.StoreToDMS,
+		DMSDocumentID:   e.DMSDocumentID,
+		DMSStatus:       e.DMSStatus,
+		HasCallback:     e.HasCallback,
+		CallbackURL:     e.CallbackURL,
+		CallbackStatus:  e.CallbackStatus,
+		CreatedBy:       e.CreatedBy,
+		CreatedAt:       e.CreatedAt,
+		ProcessedAt:     e.ProcessedAt,
+		UpdatedAt:       e.UpdatedAt,
+	}
+}

@@ -6,15 +6,17 @@ import (
 )
 
 type DocumentTemplateVersion struct {
-	ID            int64          `gorm:"column:id;primaryKey"`
-	TemplateID    int64          `gorm:"column:template_id"`
-	Version       int            `gorm:"column:version"`
-	Content       string         `gorm:"column:content"`
-	Schema        map[string]any `gorm:"column:schema;serializer:json"`
-	SamplePayload map[string]any `gorm:"column:sample_payload;serializer:json"`
-	IsPublished   bool           `gorm:"column:is_published"`
-	PublishedAt   *time.Time     `gorm:"column:published_at"`
-	CreatedAt     time.Time      `gorm:"column:created_at"`
+	ID         int64  `gorm:"column:id;primaryKey"`
+	TemplateID int64  `gorm:"column:template_id"`
+	Version    int    `gorm:"column:version"`
+	Content    string `gorm:"column:content"`
+	// file path
+	// FileTemplatePath string         `gorm:"column:file_template_path"` // file template path
+	Schema           map[string]any `gorm:"column:schema;serializer:json"`
+	SamplePayload    map[string]any `gorm:"column:sample_payload;serializer:json"`
+	IsPublished      bool           `gorm:"column:is_published"`
+	PublishedAt      *time.Time     `gorm:"column:published_at"`
+	CreatedAt        time.Time      `gorm:"column:created_at"`
 }
 
 func (DocumentTemplateVersion) TableName() string {
@@ -27,6 +29,7 @@ func (m *DocumentTemplateVersion) ToEntity() entity.DocumentTemplateVersion {
 		TemplateID:    m.TemplateID,
 		Version:       m.Version,
 		Content:       m.Content,
+		// FileTemplatePath: m.FileTemplatePath,
 		Schema:        m.Schema,
 		SamplePayload: m.SamplePayload,
 		IsPublished:   m.IsPublished,
@@ -59,5 +62,3 @@ type DocumentTemplateVersionListParams struct {
 	OrderBy     string
 	Ids         []string
 }
-
-

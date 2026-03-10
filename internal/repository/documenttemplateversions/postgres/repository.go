@@ -8,6 +8,7 @@ import (
 	entity "go-document-generator/internal/entity/documenttemplateversions"
 	repo "go-document-generator/internal/repository/documenttemplateversions"
 	"go-document-generator/internal/repository/documenttemplateversions/model"
+
 	"gorm.io/gorm"
 )
 
@@ -51,16 +52,36 @@ func (r *documentTemplateVersionsRepository) List(ctx context.Context) ([]entity
 	return res, nil
 }
 
-func (r *documentTemplateVersionsRepository) Update(ctx context.Context, v entity.DocumentTemplateVersion) (entity.DocumentTemplateVersion, error) {
-	updates := map[string]any{
-		"template_id":    v.TemplateID,
-		"version":        v.Version,
-		"content":        v.Content,
-		"schema":         v.Schema,
-		"sample_payload": v.SamplePayload,
-		"is_published":   v.IsPublished,
-		"published_at":   v.PublishedAt,
+func (r *documentTemplateVersionsRepository) ListByTemplateID(ctx context.Context, templateID int64) ([]entity.DocumentTemplateVersion, error) {
+	var rows []model.DocumentTemplateVersion
+	if err := r.db.WithContext(ctx).
+		Where("template_id = ?", templateID).
+		Order("version DESC").
+		Find(&rows).Error; err != nil {
+		return nil, err
 	}
+	result := make([]entity.DocumentTemplateVersion, 0, len(rows))
+	for _, m := range rows {
+		result = append(result, m.ToEntity())
+	}
+	return result, nil
+}
+
+func (r *documentTemplateVersionsRepository) GetLatestVersionNumber(ctx context.Context, templateID int64) (int, error) {
+	var maxVersion int
+	err := r.db.WithContext(ctx).
+		Model(&model.DocumentTemplateVersion{}).
+		Select("COALESCE(MAX(version), 0)").
+		Where("template_id = ?", templateID).
+		Scan(&maxVersion).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxVersion, nil
+}
+
+func (r *documentTemplateVersionsRepository) Update(ctx context.Context, v entity.DocumentTemplateVersion) (entity.DocumentTemplateVersion, error) {
+	updates := model.FromEntity(v)
 	tx := r.db.WithContext(ctx).Model(&model.DocumentTemplateVersion{}).Where("id = ?", v.ID).Updates(updates)
 	if tx.Error != nil {
 		return entity.DocumentTemplateVersion{}, tx.Error
@@ -68,7 +89,7 @@ func (r *documentTemplateVersionsRepository) Update(ctx context.Context, v entit
 	if tx.RowsAffected == 0 {
 		return entity.DocumentTemplateVersion{}, errors.New("document template version not found")
 	}
-	return v, nil
+	return updates.ToEntity(), nil
 }
 
 func (r *documentTemplateVersionsRepository) Delete(ctx context.Context, id int64) error {
@@ -81,4 +102,3 @@ func (r *documentTemplateVersionsRepository) Delete(ctx context.Context, id int6
 	}
 	return nil
 }
-
