@@ -5,14 +5,14 @@ go 1.24.0
 toolchain go1.24.11
 
 require (
-	github.com/IBM/sarama v1.46.3
 	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.9.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
-	github.com/viantonugroho11/go-config-library v0.5.1
+	github.com/viantonugroho11/go-lib/config v0.1.1
+	github.com/viantonugroho11/go-lib/kafka v0.1.4
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
@@ -24,6 +24,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.8.0 // indirect
 	cloud.google.com/go/firestore v1.18.0 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
+	github.com/IBM/sarama v1.46.3 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect

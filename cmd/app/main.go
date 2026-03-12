@@ -22,15 +22,17 @@ import (
 	usecasever "go-document-generator/internal/usecase/documenttemplateversions"
 	usecaseusers "go-document-generator/internal/usecase/users"
 
-	"github.com/IBM/sarama"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	confLoader "github.com/viantonugroho11/go-config-library"
+	confLoader "github.com/viantonugroho11/go-lib/config"
 )
 
 func main() {
 	cfg := config.Configuration{}
-	loader := confLoader.New("", "go-document-generator", os.Getenv("CONSUL_URL"),
+	loader := confLoader.New(
+		"",                      // ENV prefix
+		"go-document-generator", // Consul KV key
+		os.Getenv("CONSUL_URL"),
 		confLoader.WithConfigFileSearchPaths("./config"),
 	)
 	err := loader.Load(&cfg)
@@ -69,18 +71,13 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	// Init Kafka Producer
-	producer, err := kafkainfra.NewProducer(cfg.KafkaBrokersList(), cfg.Kafka.ClientID)
-	if err != nil {
-		log.Fatalf("kafka producer init error: %v", err)
-	}
-	defer producer.Close()
-
-	// Init Kafka Consumer
-	consumerHandler := func(ctx context.Context, msg *sarama.ConsumerMessage) error {
-		return kafkarunner.ExampleHandler(ctx, msg.Key, msg.Value)
-	}
-	consumer, err := kafkainfra.NewConsumer(cfg.KafkaBrokersList(), cfg.Kafka.GroupID, cfg.Kafka.Topic, consumerHandler)
+	// Init Kafka Consumer via go-lib adapter
+	consumer, err := kafkainfra.NewGoLibConsumer[kafkarunner.ExampleEvent](
+		cfg.KafkaBrokersList(),
+		cfg.Kafka.GroupID,
+		cfg.Kafka.Topic,
+		kafkarunner.ExampleHandler{},
+	)
 	if err != nil {
 		log.Fatalf("kafka consumer init error: %v", err)
 	}
