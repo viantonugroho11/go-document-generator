@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 
-	"go-document-generator/internal/repository/user/model"
+	"go-boilerplate-clean/internal/repository/user/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -32,3 +32,5 @@ func Connect(ctx context.Context, dsn string) (*gorm.DB, error) {
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(&model.User{})
 }
+
+

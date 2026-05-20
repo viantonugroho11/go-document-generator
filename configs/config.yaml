@@ -11,8 +11,8 @@ dbsslmode: "disable"
 
 # Kafka
 kafkabrokers: "kafka:9092"
-kafkaclientid: "go-document-generator"
-kafkagroupid: "go-document-generator-group"
+kafkaclientid: "go-boilerplate-clean"
+kafkagroupid: "go-boilerplate-clean-group"
 kafkatopic: "user-events"
 
 # Redis

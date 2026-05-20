@@ -3,17 +3,16 @@ package states
 import (
 	"context"
 
-	"go-document-generator/internal/entity/sample"
+	"go-boilerplate-clean/internal/entity/sample"
 	"gorm.io/gorm"
 )
 
 type open struct {
 	stateMachine *stateMachineSample
 
-	onCreation  IOnStateTransition
-	onHold      IOnStateTransition
-	onClose     IOnStateTransition
-	onCancelled IOnStateTransition
+	onCreation IOnStateTransition
+	onPending     IOnStateTransition
+	onClosed   IOnStateTransition
 }
 
 func (s open) Do(ctx context.Context, tx *gorm.DB, update sample.Sample) (sample.Sample, error) {
@@ -21,9 +20,9 @@ func (s open) Do(ctx context.Context, tx *gorm.DB, update sample.Sample) (sample
 
 	switch update.Status {
 	case sample.SampleStatusOnHold:
-		return s.onHold.OnStateTransition(ctx, tx, update)
+		return s.onPending.OnStateTransition(ctx, tx, update)
 	case sample.SampleStatusClosed:
-		return s.onClose.OnStateTransition(ctx, tx, update)
+		return s.onClosed.OnStateTransition(ctx, tx, update)
 	default:
 		return s.onCreation.OnStateTransition(ctx, tx, update)
 	}

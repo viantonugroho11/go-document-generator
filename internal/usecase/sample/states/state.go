@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"go-document-generator/internal/entity/sample"
+	"go-boilerplate-clean/internal/entity/sample"
 
 	"gorm.io/gorm"
 )
@@ -34,30 +34,19 @@ type stateMachineSample struct {
 
 type stateMachineFactorySample struct {
 	onCreation IOnStateTransition
-	onHold     IOnStateTransition
-	onClose    IOnStateTransition
-
-	onBuybackEligible IOnStateTransition
-	onBuybackSuccess  IOnStateTransition
-	onCancelled       IOnStateTransition
+	onPending  IOnStateTransition
+	onClosed   IOnStateTransition
 }
 
 func NewSampleStateMachineFactory(
 	onCreation IOnStateTransition,
-	onHold IOnStateTransition,
-	onClose IOnStateTransition,
-
-	onBuybackEligible IOnStateTransition,
-	onBuybackSuccess IOnStateTransition,
-	onCancelled IOnStateTransition,
+	onPending IOnStateTransition,
+	onClosed IOnStateTransition,
 ) *stateMachineFactorySample {
 	return &stateMachineFactorySample{
-		onCreation:        onCreation,
-		onHold:            onHold,
-		onClose:           onClose,
-		onBuybackEligible: onBuybackEligible,
-		onBuybackSuccess:  onBuybackSuccess,
-		onCancelled:       onCancelled,
+		onCreation: onCreation,
+		onPending:  onPending,
+		onClosed:   onClosed,
 	}
 }
 
@@ -67,9 +56,20 @@ func (smf stateMachineFactorySample) NewStateMachine(ctx context.Context, curren
 	sm.open = open{
 		stateMachine: sm,
 		onCreation:   smf.onCreation,
-		onHold:       smf.onHold,
-		onClose:      smf.onClose,
-		onCancelled:  smf.onCancelled,
+		onPending:    smf.onPending,
+		onClosed:     smf.onClosed,
+	}
+
+	sm.onHold = onHold{
+		stateMachine: sm,
+		onPending:    smf.onPending,
+		onClosed:     smf.onClosed,
+	}
+
+	sm.closed = closed{
+		stateMachine: sm,
+		onPending:    smf.onPending,
+		onClosed:     smf.onClosed,
 	}
 
 	sm.data = current
