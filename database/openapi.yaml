@@ -1,0 +1,1125 @@
+openapi: 3.0.3
+
+info:
+  title: Document Generator Service API
+  version: 1.0.0
+  description: |
+    Enterprise asynchronous document generation platform — template management,
+    versioning, JSON-schema validation, rendering, storage, DMS handoff, and webhooks.
+
+    **Conventions**
+    - Resource paths use plural nouns (`/templates`, `/documents`).
+    - JSON field names are `snake_case` and align with PostgreSQL columns.
+    - Timestamps are ISO-8601 (`date-time`).
+    - List endpoints return `{ data, meta }`.
+    - `request_id` on document create is the idempotency key (unique per tenant).
+    - Multi-tenant: send `X-Tenant-Id` when operating in tenant scope.
+
+servers:
+  - url: https://api.example.com/document-generator/v1
+    description: Production
+  - url: https://api.staging.example.com/document-generator/v1
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Templates
+    description: Master document templates
+  - name: Template Versions
+    description: Versioned template content and JSON schema
+  - name: Documents
+    description: Generation jobs and generated outputs
+  - name: Render Logs
+    description: Per-attempt render diagnostics
+  - name: Callbacks
+    description: Webhook delivery and testing
+
+paths:
+
+  /templates:
+    get:
+      tags: [Templates]
+      summary: List templates
+      operationId: listTemplates
+      parameters:
+        - $ref: '#/components/parameters/TenantIdHeader'
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+        - name: engine
+          in: query
+          schema:
+            $ref: '#/components/schemas/TemplateEngine'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Paginated template list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Templates]
+      summary: Create template
+      operationId: createTemplate
+      parameters:
+        - $ref: '#/components/parameters/TenantIdHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /templates/{template_id}:
+    parameters:
+      - $ref: '#/components/parameters/TemplateId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Templates]
+      summary: Get template by ID
+      operationId: getTemplate
+      responses:
+        '200':
+          description: Template detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentTemplate'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Templates]
+      summary: Update template (partial)
+      operationId: patchTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTemplateRequest'
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentTemplate'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Templates]
+      summary: Deactivate template
+      description: Sets `is_active` to `false` (soft deactivation).
+      operationId: deactivateTemplate
+      responses:
+        '204':
+          description: Template deactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /templates/{template_id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/TemplateId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Template Versions]
+      summary: List template versions
+      operationId: listTemplateVersions
+      parameters:
+        - name: is_published
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Version list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersionListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Template Versions]
+      summary: Create template version
+      operationId: createTemplateVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateVersionRequest'
+      responses:
+        '201':
+          description: Version created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /templates/{template_id}/versions/{version_id}:
+    parameters:
+      - $ref: '#/components/parameters/TemplateId'
+      - $ref: '#/components/parameters/VersionId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Template Versions]
+      summary: Get template version by ID
+      operationId: getTemplateVersion
+      responses:
+        '200':
+          description: Version detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /templates/{template_id}/versions/{version_id}/publish:
+    parameters:
+      - $ref: '#/components/parameters/TemplateId'
+      - $ref: '#/components/parameters/VersionId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    post:
+      tags: [Template Versions]
+      summary: Publish template version
+      description: Marks the version as published; typically unpublishes other versions of the same template.
+      operationId: publishTemplateVersion
+      responses:
+        '200':
+          description: Version published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /documents:
+    get:
+      tags: [Documents]
+      summary: List document generation jobs
+      operationId: listDocuments
+      parameters:
+        - $ref: '#/components/parameters/TenantIdHeader'
+        - name: request_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocumentStatus'
+        - name: template_code
+          in: query
+          schema:
+            type: string
+        - name: dms_status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DmsStatus'
+        - name: callback_status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CallbackStatus'
+        - name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Paginated document list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Documents]
+      summary: Queue document generation
+      description: |
+        Creates an asynchronous generation job. Returns `202` with the document
+        resource in `PENDING` or `QUEUED` status. Use the same `request_id` to
+        safely retry (idempotent).
+      operationId: createDocument
+      parameters:
+        - $ref: '#/components/parameters/TenantIdHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+      responses:
+        '202':
+          description: Generation queued
+          headers:
+            Location:
+              description: URL of the document resource
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '200':
+          description: Existing document returned (idempotent replay)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Template or published version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /documents/by-request/{request_id}:
+    parameters:
+      - $ref: '#/components/parameters/RequestIdPath'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Documents]
+      summary: Get document by request ID
+      operationId: getDocumentByRequestId
+      responses:
+        '200':
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{document_id}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Documents]
+      summary: Get document by ID
+      operationId: getDocument
+      responses:
+        '200':
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Documents]
+      summary: Soft-delete document
+      operationId: deleteDocument
+      responses:
+        '204':
+          description: Document soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{document_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    post:
+      tags: [Documents]
+      summary: Cancel document generation
+      operationId: cancelDocument
+      description: Allowed when status is `PENDING`, `QUEUED`, or `PROCESSING`.
+      responses:
+        '200':
+          description: Document cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Document not in a cancellable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents/{document_id}/retry:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    post:
+      tags: [Documents]
+      summary: Retry failed generation
+      operationId: retryDocument
+      responses:
+        '202':
+          description: Retry queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Document not in `FAILED` state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents/{document_id}/download:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Documents]
+      summary: Download generated file
+      operationId: downloadDocument
+      description: Redirects to a time-limited signed URL when status is `GENERATED`.
+      responses:
+        '302':
+          description: Redirect to signed download URL
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: File not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents/{document_id}/render-logs:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Render Logs]
+      summary: List render attempt logs
+      operationId: listDocumentRenderLogs
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Render log list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenderLogListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{document_id}/callback-attempts:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/TenantIdHeader'
+    get:
+      tags: [Callbacks]
+      summary: List webhook delivery attempts
+      operationId: listDocumentCallbackAttempts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Callback attempt list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallbackAttemptListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /callbacks/test:
+    post:
+      tags: [Callbacks]
+      summary: Test webhook endpoint
+      operationId: testCallback
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestCallbackRequest'
+      responses:
+        '200':
+          description: Test delivery result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestCallbackResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    TenantIdHeader:
+      name: X-Tenant-Id
+      in: header
+      description: Tenant scope (required in multi-tenant deployments)
+      schema:
+        type: string
+        format: uuid
+    TemplateId:
+      name: template_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    VersionId:
+      name: version_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RequestIdPath:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 100
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Sort:
+      name: sort
+      in: query
+      description: 'Sort field; prefix `-` for descending (e.g. `-created_at`)'
+      schema:
+        type: string
+        example: -created_at
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: Optional; should match `request_id` on document create
+      schema:
+        type: string
+        maxLength: 100
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Unique constraint or invalid state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: TEMPLATE_NOT_FOUND
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    PaginationMeta:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+
+    TemplateEngine:
+      type: string
+      enum: [HANDLEBARS, MUSTACHE, HTML]
+
+    OutputFormat:
+      type: string
+      enum: [PDF, HTML, DOCX]
+
+    DocumentStatus:
+      type: string
+      enum: [PENDING, QUEUED, PROCESSING, GENERATED, FAILED, CANCELLED]
+
+    DmsStatus:
+      type: string
+      enum: [NOT_SENT, QUEUED, SENT, FAILED]
+
+    CallbackStatus:
+      type: string
+      enum: [PENDING, SUCCESS, FAILED, RETRYING]
+
+    StorageProvider:
+      type: string
+      enum: [LOCAL, S3, MINIO, GCS, AZURE]
+
+    DocumentTemplate:
+      type: object
+      required: [id, code, name, engine, default_format, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        engine:
+          $ref: '#/components/schemas/TemplateEngine'
+        default_format:
+          $ref: '#/components/schemas/OutputFormat'
+        category:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        created_by:
+          type: string
+          nullable: true
+        updated_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateTemplateRequest:
+      type: object
+      required: [code, name, engine, default_format]
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 100
+        name:
+          type: string
+        description:
+          type: string
+        engine:
+          $ref: '#/components/schemas/TemplateEngine'
+        default_format:
+          $ref: '#/components/schemas/OutputFormat'
+        category:
+          type: string
+        is_active:
+          type: boolean
+          default: true
+        created_by:
+          type: string
+
+    PatchTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        engine:
+          $ref: '#/components/schemas/TemplateEngine'
+        default_format:
+          $ref: '#/components/schemas/OutputFormat'
+        category:
+          type: string
+        is_active:
+          type: boolean
+        updated_by:
+          type: string
+
+    TemplateListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentTemplate'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TemplateVersion:
+      type: object
+      required: [id, template_id, version, output_format, is_published, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+        template_id:
+          type: integer
+          format: int64
+        version:
+          type: integer
+        content:
+          type: string
+          description: Omitted in list responses; included on detail GET
+        schema:
+          type: object
+          additionalProperties: true
+          nullable: true
+        variables:
+          type: array
+          items: {}
+          nullable: true
+        sample_payload:
+          type: object
+          additionalProperties: true
+          nullable: true
+        output_format:
+          $ref: '#/components/schemas/OutputFormat'
+        checksum:
+          type: string
+          nullable: true
+        is_published:
+          type: boolean
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreateTemplateVersionRequest:
+      type: object
+      required: [content, output_format]
+      properties:
+        content:
+          type: string
+        schema:
+          type: object
+          additionalProperties: true
+        variables:
+          type: array
+          items: {}
+        sample_payload:
+          type: object
+          additionalProperties: true
+        output_format:
+          $ref: '#/components/schemas/OutputFormat'
+        created_by:
+          type: string
+
+    TemplateVersionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateVersion'
+
+    CreateDocumentRequest:
+      type: object
+      required: [request_id, template_code, payload]
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        request_id:
+          type: string
+          maxLength: 100
+          description: Client idempotency key (unique per tenant)
+        template_code:
+          type: string
+        template_version:
+          type: integer
+          description: Omit to use latest published version
+        output_format:
+          $ref: '#/components/schemas/OutputFormat'
+        payload:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        store_to_dms:
+          type: boolean
+          default: false
+        has_callback:
+          type: boolean
+          default: false
+        callback_url:
+          type: string
+          format: uri
+        expired_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+
+    GeneratedDocument:
+      type: object
+      required:
+        - id
+        - request_id
+        - template_code
+        - template_version
+        - status
+        - output_format
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+        request_id:
+          type: string
+        template_id:
+          type: integer
+          format: int64
+          nullable: true
+        template_version_id:
+          type: integer
+          format: int64
+          nullable: true
+        template_code:
+          type: string
+        template_version:
+          type: integer
+        payload:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        error_message:
+          type: string
+          nullable: true
+        output_format:
+          $ref: '#/components/schemas/OutputFormat'
+        file_name:
+          type: string
+          nullable: true
+        file_path:
+          type: string
+          nullable: true
+        storage_provider:
+          $ref: '#/components/schemas/StorageProvider'
+        file_size:
+          type: integer
+          format: int64
+          nullable: true
+        checksum:
+          type: string
+          nullable: true
+        content_type:
+          type: string
+          nullable: true
+        is_signed:
+          type: boolean
+        signature_provider:
+          type: string
+          nullable: true
+        signed_at:
+          type: string
+          format: date-time
+          nullable: true
+        store_to_dms:
+          type: boolean
+        dms_document_id:
+          type: string
+          nullable: true
+        dms_status:
+          $ref: '#/components/schemas/DmsStatus'
+        has_callback:
+          type: boolean
+        callback_url:
+          type: string
+          format: uri
+          nullable: true
+        callback_status:
+          $ref: '#/components/schemas/CallbackStatus'
+        callback_last_at:
+          type: string
+          format: date-time
+          nullable: true
+        retry_count:
+          type: integer
+        next_retry_at:
+          type: string
+          format: date-time
+          nullable: true
+        expired_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+
+    DocumentListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedDocument'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    RenderLog:
+      type: object
+      required: [id, document_id, status, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        document_id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        message:
+          type: string
+          nullable: true
+        execution_time_ms:
+          type: integer
+          format: int64
+          nullable: true
+        stack_trace:
+          type: string
+          nullable: true
+        worker_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    RenderLogListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RenderLog'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    CallbackAttempt:
+      type: object
+      required: [id, document_id, callback_url, is_success, attempted_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        document_id:
+          type: integer
+          format: int64
+        callback_url:
+          type: string
+          format: uri
+        request_payload:
+          type: object
+          additionalProperties: true
+          nullable: true
+        response_payload:
+          type: object
+          additionalProperties: true
+          nullable: true
+        response_status_code:
+          type: integer
+          nullable: true
+        is_success:
+          type: boolean
+        error_message:
+          type: string
+          nullable: true
+        attempted_at:
+          type: string
+          format: date-time
+
+    CallbackAttemptListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallbackAttempt'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TestCallbackRequest:
+      type: object
+      required: [callback_url]
+      properties:
+        callback_url:
+          type: string
+          format: uri
+        sample_payload:
+          type: object
+          additionalProperties: true
+
+    TestCallbackResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        response_status_code:
+          type: integer
+        error_message:
+          type: string

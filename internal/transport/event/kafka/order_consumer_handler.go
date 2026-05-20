@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"go-boilerplate-clean/internal/transport/event/events"
+	"go-document-generator/internal/transport/event/events"
 
 	"github.com/viantonugroho11/go-lib/kafka"
 )

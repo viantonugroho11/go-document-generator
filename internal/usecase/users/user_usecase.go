@@ -6,9 +6,9 @@ import (
 	"log"
 	"strings"
 
-	userEntity "go-boilerplate-clean/internal/entity/users"
-	begin "go-boilerplate-clean/internal/repository/begin"
-	repouser "go-boilerplate-clean/internal/repository/user"
+	userEntity "go-document-generator/internal/entity/users"
+	begin "go-document-generator/internal/repository/begin"
+	repouser "go-document-generator/internal/repository/user"
 )
 
 type UserService interface {

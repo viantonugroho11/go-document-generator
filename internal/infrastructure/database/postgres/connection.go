@@ -3,7 +3,13 @@ package postgres
 import (
 	"context"
 
-	"go-boilerplate-clean/internal/repository/user/model"
+	cbmodel "go-document-generator/internal/repository/documentcallbackattempts/model"
+	logmodel "go-document-generator/internal/repository/documentrenderlogs/model"
+	tplmodel "go-document-generator/internal/repository/documenttemplates/model"
+	vermodel "go-document-generator/internal/repository/documenttemplateversions/model"
+	docmodel "go-document-generator/internal/repository/documents/model"
+	"go-document-generator/internal/repository/user/model"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -18,7 +24,6 @@ func Connect(ctx context.Context, dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Check connection
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, err
@@ -30,7 +35,12 @@ func Connect(ctx context.Context, dsn string) (*gorm.DB, error) {
 }
 
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&model.User{})
+	return db.AutoMigrate(
+		&model.User{},
+		&tplmodel.DocumentTemplate{},
+		&vermodel.DocumentTemplateVersion{},
+		&docmodel.Document{},
+		&logmodel.DocumentRenderLog{},
+		&cbmodel.DocumentCallbackAttempt{},
+	)
 }
-
-

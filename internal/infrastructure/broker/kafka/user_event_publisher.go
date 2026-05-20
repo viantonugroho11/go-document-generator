@@ -3,8 +3,8 @@ package kafka
 import (
 	"context"
 
-	"go-boilerplate-clean/internal/entity/users"
-	"go-boilerplate-clean/internal/transport/event/events"
+	"go-document-generator/internal/entity/users"
+	"go-document-generator/internal/transport/event/events"
 
 	"github.com/viantonugroho11/go-lib/kafka"
 )

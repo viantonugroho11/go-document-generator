@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"go-boilerplate-clean/internal/bootstrap"
+	"go-document-generator/internal/bootstrap"
 )
 
 func main() {

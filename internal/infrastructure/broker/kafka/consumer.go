@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"go-boilerplate-clean/internal/config"
+	"go-document-generator/internal/config"
 
 	"github.com/IBM/sarama"
 	"github.com/viantonugroho11/go-lib/kafka"

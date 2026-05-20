@@ -5,7 +5,7 @@ import (
 	"context"
 	"text/template"
 
-	"go-document-generator/internal/shared/csv"
+	sharedcsv "go-document-generator/internal/shared/csv"
 )
 
 // TmplCSVGenerator merender CSV menggunakan text/template (engine "tmpl").
@@ -17,7 +17,7 @@ type TmplCSVGenerator struct {
 // NewCSVGenerator membuat generator CSV berbasis text/template.
 // Opsi funcs akan digabung dengan DefaultCSVFuncMap.
 func NewCSVGenerator() *TmplCSVGenerator {
-	funcs := shared.DefaultCSVFuncMap()
+	funcs := sharedcsv.DefaultCSVFuncMap()
 	return &TmplCSVGenerator{
 		funcs: funcs,
 	}

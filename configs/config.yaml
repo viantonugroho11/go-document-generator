@@ -14,6 +14,9 @@ kafkabrokers: "kafka:9092"
 kafkaclientid: "go-boilerplate-clean"
 kafkagroupid: "go-boilerplate-clean-group"
 kafkatopic: "user-events"
+kafkatopictemplates: "template-events"
+kafkatopictemplateversions: "template-version-events"
+kafkatopicdocuments: "document-events"
 
 # Redis
 redisaddr: "redis:6379"

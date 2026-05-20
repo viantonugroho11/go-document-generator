@@ -5,6 +5,9 @@ type Kafka struct {
 	ClientID  string   `json:"client_id"`
 	GroupID   string   `json:"group_id"`
 	Topic     string   `json:"topic"`
+	TopicTemplates        string `json:"topic_templates"`
+	TopicTemplateVersions string `json:"topic_template_versions"`
+	TopicDocuments        string `json:"topic_documents"`
 	// Consumer kedua (contoh: order)
 	TopicOrders   string `json:"topic_orders"`
 	GroupIDOrders string `json:"group_id_orders"`

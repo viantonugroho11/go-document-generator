@@ -321,8 +321,8 @@ github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6Kllzaw
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasttemplate v1.2.2 h1:lxLXG0uE3Qnshl9QyaK6XJxMXlQZELvChBOCmQD0Loo=
 github.com/valyala/fasttemplate v1.2.2/go.mod h1:KHLXt3tVN2HBp8eijSv/kGJopbvo7S+qRAEEKiv+SiQ=
-github.com/viantonugroho11/go-lib/config v0.1.1 h1:4MOTVCrpVtaoBgIjdnHsfVwc/z3+SYbJ3+4Tyc77Ek0=
-github.com/viantonugroho11/go-lib/config v0.1.1/go.mod h1:ScaCFSPQEcMvb9pzi5AqC9/DrUNNX02zD/AYgAlLo7Q=
+github.com/viantonugroho11/go-config-library v0.5.1 h1:tr2x9oanmwjnrQw1wKMWOvroVpDbef3XBPGG7DWeECE=
+github.com/viantonugroho11/go-config-library v0.5.1/go.mod h1:ceg3PC1peNe0XtjPT+n5cxDRXHn9TAWudQuL3uP68y4=
 github.com/viantonugroho11/go-lib/kafka v0.1.4 h1:4Sp3HHBATuXqkJLtiJ8PXoa6GRHu1Dm6bmzXZq8TFc0=
 github.com/viantonugroho11/go-lib/kafka v0.1.4/go.mod h1:A/s9kJaa2RKslYfvYCtur3iSxYA32kSdqUj1eDcQ2tw=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

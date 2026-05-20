@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"context"
 
-	pginfra "go-boilerplate-clean/internal/infrastructure/database/postgres"
+	pginfra "go-document-generator/internal/infrastructure/database/postgres"
 	"gorm.io/gorm"
 )
 

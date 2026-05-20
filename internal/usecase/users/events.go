@@ -2,7 +2,7 @@ package users
 
 import (
 	"context"
-	userEntity "go-boilerplate-clean/internal/entity/users"
+	userEntity "go-document-generator/internal/entity/users"
 )
 
 // UserEventPublisher interface untuk publish event user (mis. ke Kafka).

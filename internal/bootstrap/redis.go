@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"strconv"
 
-	redisinfra "go-boilerplate-clean/internal/infrastructure/cache/redis"
+	redisinfra "go-document-generator/internal/infrastructure/cache/redis"
 
 	"github.com/redis/go-redis/v9"
 )

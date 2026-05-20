@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"go-boilerplate-clean/internal/entity/sample"
+	"go-document-generator/internal/entity/sample"
 
 	"gorm.io/gorm"
 )

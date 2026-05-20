@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	userEntity "go-boilerplate-clean/internal/entity/users"
+	userEntity "go-document-generator/internal/entity/users"
 
 	"gorm.io/gorm"
 )

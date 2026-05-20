@@ -3,10 +3,10 @@ package event
 import (
 	"context"
 
-	"go-boilerplate-clean/internal/config"
-	infrakafka "go-boilerplate-clean/internal/infrastructure/broker/kafka"
-	transportkafka "go-boilerplate-clean/internal/transport/event/kafka"
-	usecaseusers "go-boilerplate-clean/internal/usecase/users"
+	"go-document-generator/internal/config"
+	infrakafka "go-document-generator/internal/infrastructure/broker/kafka"
+	transportkafka "go-document-generator/internal/transport/event/kafka"
+	usecaseusers "go-document-generator/internal/usecase/users"
 )
 
 const (

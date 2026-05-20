@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"os"
 
-	"go-boilerplate-clean/internal/config"
+	"go-document-generator/internal/config"
 
 	confLoader "github.com/viantonugroho11/go-config-library"
 )
@@ -30,7 +30,7 @@ func Config() *config.Configuration {
 
 func loadConfig() (*config.Configuration, error) {
 	c := &config.Configuration{}
-	loader := confLoader.New("", "go-boilerplate-clean", os.Getenv("CONSUL_URL"),
+	loader := confLoader.New("", "go-document-generator", os.Getenv("CONSUL_URL"),
 		confLoader.WithConfigFileSearchPaths("./config"),
 	)
 	if err := loader.Load(c); err != nil {

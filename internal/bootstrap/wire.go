@@ -1,10 +1,10 @@
 package bootstrap
 
 import (
-	kafkainfra "go-boilerplate-clean/internal/infrastructure/broker/kafka"
-	userpg "go-boilerplate-clean/internal/repository/user/postgres"
-	"go-boilerplate-clean/internal/transport/event/events"
-	usecaseusers "go-boilerplate-clean/internal/usecase/users"
+	kafkainfra "go-document-generator/internal/infrastructure/broker/kafka"
+	userpg "go-document-generator/internal/repository/user/postgres"
+	"go-document-generator/internal/transport/event/events"
+	usecaseusers "go-document-generator/internal/usecase/users"
 
 	"github.com/viantonugroho11/go-lib/kafka"
 	"gorm.io/gorm"

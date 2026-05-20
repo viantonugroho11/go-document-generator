@@ -8,23 +8,22 @@ import (
 	"os/signal"
 	"time"
 
-	"go-boilerplate-clean/internal/transport/apis"
-	usecaseusers "go-boilerplate-clean/internal/usecase/users"
+	"go-document-generator/internal/transport/apis"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// NewEcho buat Echo, middleware, dan daftar routes.
-func newEcho(userService usecaseusers.UserService) *echo.Echo {
+// newEcho buat Echo, middleware, dan daftar routes.
+func newEcho(services apis.Services) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Recover(), middleware.Logger())
-	apis.RegisterRoutes(e, userService)
+	apis.RegisterRoutes(e, services)
 	return e
 }
 
-// RunHTTP jalankan server sampai dapat signal interrupt, lalu graceful shutdown. Pakai Config() global untuk port.
+// runHTTP jalankan server sampai dapat signal interrupt, lalu graceful shutdown. Pakai Config() global untuk port.
 func runHTTP(e *echo.Echo) error {
 	c := Config()
 	server := &http.Server{

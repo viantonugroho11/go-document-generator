@@ -1,7 +1,7 @@
 package model
 
 import (
-	userEntity "go-boilerplate-clean/internal/entity/users"
+	userEntity "go-document-generator/internal/entity/users"
 )
 
 type User struct {

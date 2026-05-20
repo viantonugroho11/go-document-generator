@@ -3,7 +3,7 @@ package on_open
 import (
 	"context"
 
-	entitysample "go-boilerplate-clean/internal/entity/sample"
+	entitysample "go-document-generator/internal/entity/sample"
 	"gorm.io/gorm"
 )
 

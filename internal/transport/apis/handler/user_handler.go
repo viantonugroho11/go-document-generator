@@ -3,9 +3,9 @@ package handler
 import (
 	"net/http"
 
-	userEntity "go-boilerplate-clean/internal/entity/users"
-	"go-boilerplate-clean/internal/transport/apis/dto"
-	userUsecase "go-boilerplate-clean/internal/usecase/users"
+	userEntity "go-document-generator/internal/entity/users"
+	"go-document-generator/internal/transport/apis/dto"
+	userUsecase "go-document-generator/internal/usecase/users"
 
 	"github.com/labstack/echo/v4"
 )

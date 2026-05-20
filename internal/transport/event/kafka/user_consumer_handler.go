@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"go-boilerplate-clean/internal/transport/event/events"
-	userUsecase "go-boilerplate-clean/internal/usecase/users"
+	"go-document-generator/internal/transport/event/events"
+	userUsecase "go-document-generator/internal/usecase/users"
 
 	"github.com/viantonugroho11/go-lib/kafka"
 )

@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 
-	"go-boilerplate-clean/internal/repository/begin"
+	"go-document-generator/internal/repository/begin"
 
 	"gorm.io/gorm"
 )
