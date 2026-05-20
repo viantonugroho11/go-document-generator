@@ -65,13 +65,15 @@ type CreateDocumentRequest struct {
 }
 
 type PatchDocumentRequest struct {
-	Payload      map[string]any      `json:"payload"`
-	Metadata     map[string]any      `json:"metadata"`
-	OutputFormat *enums.OutputFormat `json:"output_format"`
-	StoreToDms   *bool               `json:"store_to_dms"`
-	HasCallback  *bool               `json:"has_callback"`
-	CallbackURL  *string             `json:"callback_url"`
-	ExpiredAt    *time.Time          `json:"expired_at"`
+	Status       *enums.DocumentStatus `json:"status"`
+	Payload      map[string]any        `json:"payload"`
+	Metadata     map[string]any        `json:"metadata"`
+	OutputFormat *enums.OutputFormat   `json:"output_format"`
+	StoreToDms   *bool                 `json:"store_to_dms"`
+	HasCallback  *bool                 `json:"has_callback"`
+	CallbackURL  *string               `json:"callback_url"`
+	ExpiredAt    *time.Time            `json:"expired_at"`
+	ErrorMessage *string               `json:"error_message"`
 }
 
 type DocumentListResponse struct {
@@ -142,6 +144,12 @@ func DocumentFromEntity(d docEntity.Document) GeneratedDocumentResponse {
 }
 
 func ApplyPatchDocument(existing docEntity.Document, req PatchDocumentRequest) docEntity.Document {
+	if req.Status != nil {
+		existing.Status = *req.Status
+	}
+	if req.ErrorMessage != nil {
+		existing.ErrorMessage = req.ErrorMessage
+	}
 	if req.Payload != nil {
 		existing.Payload = req.Payload
 	}

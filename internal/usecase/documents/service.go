@@ -17,6 +17,8 @@ import (
 	"go-document-generator/internal/shared/apperror"
 	"go-document-generator/internal/shared/pagination"
 	"go-document-generator/internal/shared/validators"
+	"go-document-generator/internal/usecase/documents/states"
+	"go-document-generator/internal/usecase/documents/transitions"
 )
 
 type CreateInput struct {
@@ -47,12 +49,13 @@ type Service interface {
 }
 
 type service struct {
-	docs      docrepo.DocumentsRepository
-	templates tplrepo.DocumentTemplatesRepository
-	versions  verrepo.DocumentTemplateVersionsRepository
-	txManager begin.BeginRepository
-	publisher DocumentEventPublisher
-	selector  GeneratorSelector
+	docs          docrepo.DocumentsRepository
+	templates     tplrepo.DocumentTemplatesRepository
+	versions      verrepo.DocumentTemplateVersionsRepository
+	txManager     begin.BeginRepository
+	publisher     DocumentEventPublisher
+	selector      GeneratorSelector
+	stateMachine  states.IDocumentStateMachineFactory
 }
 
 func NewService(
@@ -66,13 +69,17 @@ func NewService(
 	if publisher == nil {
 		publisher = NoopDocumentPublisher()
 	}
+	deps := transitions.Deps{Templates: templates, Versions: versions, Selector: adaptSelector(selector)}
+	smFactory := states.NewDocumentStateMachineFactory(BuildStateHandlers(deps))
+
 	return &service{
-		docs:      docs,
-		templates: templates,
-		versions:  versions,
-		txManager: tx,
-		publisher: publisher,
-		selector:  selector,
+		docs:         docs,
+		templates:    templates,
+		versions:     versions,
+		txManager:    tx,
+		publisher:    publisher,
+		selector:     selector,
+		stateMachine: smFactory,
 	}
 }
 
@@ -177,33 +184,54 @@ func (s *service) GetByID(ctx context.Context, id int64, tenantID *string) (docE
 	return d, mapRepoErr(err)
 }
 
-func (s *service) Patch(ctx context.Context, d docEntity.Document) (docEntity.Document, error) {
-	if d.ID <= 0 {
+func (s *service) Patch(ctx context.Context, patch docEntity.Document) (docEntity.Document, error) {
+	if patch.ID <= 0 {
 		return docEntity.Document{}, apperror.ErrInvalidInput
 	}
-	existing, err := s.docs.GetByID(ctx, nil, d.ID, d.TenantID)
+	existing, err := s.docs.GetByID(ctx, nil, patch.ID, patch.TenantID)
 	if err != nil {
 		return docEntity.Document{}, mapRepoErr(err)
 	}
-	switch existing.Status {
-	case enums.DocumentStatusPending, enums.DocumentStatusQueued:
-	default:
-		return docEntity.Document{}, apperror.ErrInvalidState
-	}
 
-	if d.TemplateVersionID != nil && d.TemplateID != nil && len(d.Payload) > 0 {
-		ver, err := s.versions.GetByID(ctx, nil, *d.TemplateID, *d.TemplateVersionID, d.TenantID)
-		if err != nil {
-			return docEntity.Document{}, mapRepoErr(err)
-		}
-		if len(ver.Schema) > 0 {
-			if err := validators.ValidateSchema(ver.Schema, d.Payload); err != nil {
-				return docEntity.Document{}, err
-			}
-		}
+	updated := mergeDocumentPatch(existing, patch)
+	result, err := s.applyStateMachine(ctx, existing, updated)
+	if err != nil {
+		return docEntity.Document{}, err
 	}
+	return s.docs.Update(ctx, nil, result)
+}
 
-	return s.docs.Update(ctx, nil, d)
+// mergeDocumentPatch menggabungkan field patch ke dokumen existing.
+func mergeDocumentPatch(existing, patch docEntity.Document) docEntity.Document {
+	out := existing
+	if patch.Payload != nil {
+		out.Payload = patch.Payload
+	}
+	if patch.Metadata != nil {
+		out.Metadata = patch.Metadata
+	}
+	if patch.OutputFormat != "" {
+		out.OutputFormat = patch.OutputFormat
+	}
+	if patch.Status != "" && patch.Status != existing.Status {
+		out.Status = patch.Status
+	}
+	if patch.StoreToDms != existing.StoreToDms {
+		out.StoreToDms = patch.StoreToDms
+	}
+	if patch.HasCallback != existing.HasCallback {
+		out.HasCallback = patch.HasCallback
+	}
+	if patch.CallbackURL != nil {
+		out.CallbackURL = patch.CallbackURL
+	}
+	if patch.ExpiredAt != nil {
+		out.ExpiredAt = patch.ExpiredAt
+	}
+	if patch.ErrorMessage != nil {
+		out.ErrorMessage = patch.ErrorMessage
+	}
+	return out
 }
 
 func (s *service) GetByRequestID(ctx context.Context, requestID string, tenantID *string) (docEntity.Document, error) {
@@ -221,31 +249,27 @@ func (s *service) List(ctx context.Context, f docrepo.ListFilter) ([]docEntity.D
 }
 
 func (s *service) Cancel(ctx context.Context, id int64, tenantID *string) (docEntity.Document, error) {
-	d, err := s.docs.GetByID(ctx, nil, id, tenantID)
+	existing, err := s.docs.GetByID(ctx, nil, id, tenantID)
 	if err != nil {
 		return docEntity.Document{}, mapRepoErr(err)
 	}
-	switch d.Status {
-	case enums.DocumentStatusPending, enums.DocumentStatusQueued, enums.DocumentStatusProcessing:
-	default:
-		return docEntity.Document{}, apperror.ErrInvalidState
+	result, err := s.transitionDocument(ctx, existing, enums.DocumentStatusCancelled)
+	if err != nil {
+		return docEntity.Document{}, err
 	}
-	d.Status = enums.DocumentStatusCancelled
-	return s.docs.Update(ctx, nil, d)
+	return s.docs.Update(ctx, nil, result)
 }
 
 func (s *service) Retry(ctx context.Context, id int64, tenantID *string) (docEntity.Document, error) {
-	d, err := s.docs.GetByID(ctx, nil, id, tenantID)
+	existing, err := s.docs.GetByID(ctx, nil, id, tenantID)
 	if err != nil {
 		return docEntity.Document{}, mapRepoErr(err)
 	}
-	if d.Status != enums.DocumentStatusFailed {
-		return docEntity.Document{}, apperror.ErrInvalidState
+	result, err := s.transitionDocument(ctx, existing, enums.DocumentStatusQueued)
+	if err != nil {
+		return docEntity.Document{}, err
 	}
-	d.Status = enums.DocumentStatusQueued
-	d.RetryCount++
-	d.ErrorMessage = nil
-	updated, err := s.docs.Update(ctx, nil, d)
+	updated, err := s.docs.Update(ctx, nil, result)
 	if err != nil {
 		return docEntity.Document{}, err
 	}
