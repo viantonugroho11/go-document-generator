@@ -64,7 +64,7 @@ func generateAndFinalize(ctx context.Context, deps Deps, d *docEntity.Document) 
 		if err != nil {
 			return fmt.Errorf("save document file: %w", err)
 		}
-		storageProvider = enums.StorageProviderMinio
+		storageProvider = deps.Storage.ProviderName()
 	} else {
 		path, fileName, err = storage.SaveDocument("", d.ID, d.RequestID, ext, data)
 		if err != nil {

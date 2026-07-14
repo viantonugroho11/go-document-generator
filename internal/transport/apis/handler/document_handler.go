@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -177,11 +178,16 @@ func (h *DocumentHandler) Download(c echo.Context) error {
 		return writeError(c, err)
 	}
 	id, _ := strconv.ParseInt(c.Param("document_id"), 10, 64)
-	url, err := h.docs.DownloadURL(c.Request().Context(), id, headerTenant)
+	fileURL, err := h.docs.DownloadURL(c.Request().Context(), id, headerTenant)
 	if err != nil {
 		return writeError(c, err)
 	}
-	return c.Redirect(http.StatusFound, url)
+	// Local provider mengembalikan path filesystem, bukan HTTP URL.
+	// Serve file langsung agar client tidak perlu akses filesystem server.
+	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
+		return c.File(fileURL)
+	}
+	return c.Redirect(http.StatusFound, fileURL)
 }
 
 func (h *DocumentHandler) ListRenderLogs(c echo.Context) error {

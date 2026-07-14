@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"go-document-generator/internal/entity/enums"
 	tplrepo "go-document-generator/internal/repository/documenttemplates"
 	verrepo "go-document-generator/internal/repository/documenttemplateversions"
 )
@@ -22,6 +23,7 @@ type GeneratorSelector interface {
 type StorageProvider interface {
 	Save(ctx context.Context, documentID int64, requestID, ext string, data []byte) (path, fileName string, err error)
 	PresignedURL(ctx context.Context, path string, ttl time.Duration) (string, error)
+	ProviderName() enums.StorageProvider
 }
 
 // Deps dependensi untuk handler transisi status dokumen.

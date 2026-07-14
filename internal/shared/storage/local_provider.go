@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"go-document-generator/internal/entity/enums"
 )
 
 type localProvider struct {
@@ -22,9 +24,15 @@ func (p *localProvider) Save(_ context.Context, documentID int64, requestID, ext
 	return SaveDocument(p.baseDir, documentID, requestID, ext, data)
 }
 
+// PresignedURL untuk local provider mengembalikan path filesystem.
+// Download handler harus deteksi ini dan stream file langsung, bukan redirect.
 func (p *localProvider) PresignedURL(_ context.Context, path string, _ time.Duration) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("path is empty")
 	}
 	return path, nil
+}
+
+func (p *localProvider) ProviderName() enums.StorageProvider {
+	return enums.StorageProviderLocal
 }

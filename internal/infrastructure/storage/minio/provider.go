@@ -9,6 +9,7 @@ import (
 
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"go-document-generator/internal/entity/enums"
 	sharedStorage "go-document-generator/internal/shared/storage"
 )
 
@@ -53,6 +54,10 @@ func (p *provider) PresignedURL(ctx context.Context, path string, ttl time.Durat
 		return "", fmt.Errorf("minio: presign: %w", err)
 	}
 	return u.String(), nil
+}
+
+func (p *provider) ProviderName() enums.StorageProvider {
+	return enums.StorageProviderMinio
 }
 
 func sanitize(s string) string {
