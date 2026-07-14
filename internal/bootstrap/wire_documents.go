@@ -79,105 +79,49 @@ func wireDocumentServices(db *gorm.DB, redis *goredis.Client) (apis.Services, fu
 		_ = tplProducer.Close()
 		return apis.Services{}, nil, err
 	}
-	docQueuedProducer, err := libkafka.NewProducer[events.DocumentQueuedEvent](
+
+	// document-events: lifecycle events (DocumentEvent) — partition by request_id.
+	docEventProducer, err := libkafka.NewProducer[events.DocumentEvent](
 		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentQueuedEvent) []byte { return []byte(e.RequestID) }),
+		libkafka.WithKeyFunc(func(e events.DocumentEvent) []byte { return []byte(e.ResourceID) }),
 	)
 	if err != nil {
 		_ = tplProducer.Close()
 		_ = verProducer.Close()
 		return apis.Services{}, nil, err
 	}
-	docRetryProducer, err := libkafka.NewProducer[events.DocumentRetriedEvent](
+
+	// document-events: bulk ops (DocumentBulkEvent) — partition by output_path.
+	docBulkProducer, err := libkafka.NewProducer[events.DocumentBulkEvent](
 		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentRetriedEvent) []byte { return []byte(e.RequestID) }),
+		libkafka.WithKeyFunc(func(e events.DocumentBulkEvent) []byte { return []byte(e.ResourceID) }),
 	)
 	if err != nil {
 		_ = tplProducer.Close()
 		_ = verProducer.Close()
-		_ = docQueuedProducer.Close()
+		_ = docEventProducer.Close()
 		return apis.Services{}, nil, err
 	}
-	docGeneratedProducer, err := libkafka.NewProducer[events.DocumentGeneratedEvent](
-		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentGeneratedEvent) []byte { return []byte(e.RequestID) }),
-	)
-	if err != nil {
-		_ = tplProducer.Close()
-		_ = verProducer.Close()
-		_ = docQueuedProducer.Close()
-		_ = docRetryProducer.Close()
-		return apis.Services{}, nil, err
-	}
-	docFailedProducer, err := libkafka.NewProducer[events.DocumentFailedEvent](
-		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentFailedEvent) []byte { return []byte(e.RequestID) }),
-	)
-	if err != nil {
-		_ = tplProducer.Close()
-		_ = verProducer.Close()
-		_ = docQueuedProducer.Close()
-		_ = docRetryProducer.Close()
-		_ = docGeneratedProducer.Close()
-		return apis.Services{}, nil, err
-	}
-	docCancelledProducer, err := libkafka.NewProducer[events.DocumentCancelledEvent](
-		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentCancelledEvent) []byte { return []byte(e.RequestID) }),
-	)
-	if err != nil {
-		_ = tplProducer.Close()
-		_ = verProducer.Close()
-		_ = docQueuedProducer.Close()
-		_ = docRetryProducer.Close()
-		_ = docGeneratedProducer.Close()
-		_ = docFailedProducer.Close()
-		return apis.Services{}, nil, err
-	}
-	docZippedProducer, err := libkafka.NewProducer[events.DocumentsZippedEvent](
-		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentsZippedEvent) []byte { return []byte(e.ZipPath) }),
-	)
-	if err != nil {
-		_ = tplProducer.Close(); _ = verProducer.Close()
-		_ = docQueuedProducer.Close(); _ = docRetryProducer.Close()
-		_ = docGeneratedProducer.Close(); _ = docFailedProducer.Close(); _ = docCancelledProducer.Close()
-		return apis.Services{}, nil, err
-	}
-	docMergedProducer, err := libkafka.NewProducer[events.DocumentsMergedEvent](
-		c.KafkaBrokersList(), topicDoc,
-		libkafka.WithKeyFunc(func(e events.DocumentsMergedEvent) []byte { return []byte(e.MergedPath) }),
-	)
-	if err != nil {
-		_ = tplProducer.Close(); _ = verProducer.Close()
-		_ = docQueuedProducer.Close(); _ = docRetryProducer.Close()
-		_ = docGeneratedProducer.Close(); _ = docFailedProducer.Close(); _ = docCancelledProducer.Close()
-		_ = docZippedProducer.Close()
-		return apis.Services{}, nil, err
-	}
-	docProcessProducer, err := libkafka.NewProducer[events.DocumentQueuedEvent](
+
+	// document-process: generation trigger — partition by request_id.
+	docProcessProducer, err := libkafka.NewProducer[events.DocumentEvent](
 		c.KafkaBrokersList(), topicDocProcess,
-		libkafka.WithKeyFunc(func(e events.DocumentQueuedEvent) []byte { return []byte(e.RequestID) }),
+		libkafka.WithKeyFunc(func(e events.DocumentEvent) []byte { return []byte(e.ResourceID) }),
 	)
 	if err != nil {
-		_ = tplProducer.Close(); _ = verProducer.Close()
-		_ = docQueuedProducer.Close(); _ = docRetryProducer.Close()
-		_ = docGeneratedProducer.Close(); _ = docFailedProducer.Close(); _ = docCancelledProducer.Close()
-		_ = docZippedProducer.Close(); _ = docMergedProducer.Close()
+		_ = tplProducer.Close()
+		_ = verProducer.Close()
+		_ = docEventProducer.Close()
+		_ = docBulkProducer.Close()
 		return apis.Services{}, nil, err
 	}
 
 	tplPublisher := kafkainfra.NewTemplateEventPublisherKafka(tplProducer)
 	verPublisher := kafkainfra.NewVersionEventPublisherKafka(verProducer)
-	docPublisher := kafkainfra.NewDocumentEventPublisherKafka(
-		docQueuedProducer, docRetryProducer,
-		docGeneratedProducer, docFailedProducer, docCancelledProducer,
-		docZippedProducer, docMergedProducer, docProcessProducer,
-	)
+	docPublisher := kafkainfra.NewDocumentEventPublisherKafka(docEventProducer, docBulkProducer, docProcessProducer)
 	selector := documentsinfra.NewSelector()
 
 	// Storage provider dipilih berdasarkan config storage.provider.
-	// Semua cloud provider (minio, s3, oss) butuh endpoint + credentials.
 	var storageProvider sharedStorage.Provider
 	if c.Storage.Endpoint != "" {
 		var sp sharedStorage.Provider
@@ -222,13 +166,8 @@ func wireDocumentServices(db *gorm.DB, redis *goredis.Client) (apis.Services, fu
 	cleanup := func() {
 		_ = tplProducer.Close()
 		_ = verProducer.Close()
-		_ = docQueuedProducer.Close()
-		_ = docRetryProducer.Close()
-		_ = docGeneratedProducer.Close()
-		_ = docFailedProducer.Close()
-		_ = docCancelledProducer.Close()
-		_ = docZippedProducer.Close()
-		_ = docMergedProducer.Close()
+		_ = docEventProducer.Close()
+		_ = docBulkProducer.Close()
 		_ = docProcessProducer.Close()
 	}
 	return svc, cleanup, nil
