@@ -23,4 +23,24 @@ redisaddr: "redis:6379"
 redispassword: ""
 redisdb: "0"
 
+# Storage (provider: local | minio)
+storageprovider: "local"
+storagebasedir: "./storage/documents"
+storageendpoint: ""
+storageaccesskey: ""
+storagesecretkey: ""
+storagebucket: "documents"
+storageusessl: false
+
+# Auth — kosong = dev mode (no auth)
+authapikeys: ""
+
+# DMS
+dmsendpoint: ""
+dmsapikey: ""
+
+# Callback
+callbackhmacsecret: ""
+callbackmaxretries: 3
+
 

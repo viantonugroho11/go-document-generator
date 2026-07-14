@@ -52,10 +52,12 @@ func RegisterRoutes(e *echo.Echo, svc Services) {
 	templates.POST("/:template_id/versions", verHandler.Create)
 	templates.GET("/:template_id/versions/:version_id", verHandler.Get)
 	templates.POST("/:template_id/versions/:version_id/publish", verHandler.Publish)
+	templates.POST("/:template_id/versions/:version_id/preview", docHandler.Preview)
 
 	docs := e.Group("/documents")
 	docs.GET("", docHandler.List)
 	docs.POST("", docHandler.Create)
+	docs.POST("/bulk", docHandler.BulkCreate)
 	docs.GET("/by-request/:request_id", docHandler.GetByRequestID)
 	docs.GET("/:document_id", docHandler.Get)
 	docs.PATCH("/:document_id", docHandler.Patch)

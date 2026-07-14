@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go-document-generator/internal/transport/apis"
+	apimiddleware "go-document-generator/internal/transport/middleware"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -16,9 +17,11 @@ import (
 
 // newEcho buat Echo, middleware, dan daftar routes.
 func newEcho(services apis.Services) *echo.Echo {
+	c := Config()
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Recover(), middleware.Logger())
+	e.Use(apimiddleware.APIKeyAuth(c.Auth.APIKeys))
 	apis.RegisterRoutes(e, services)
 	return e
 }

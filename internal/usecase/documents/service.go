@@ -36,8 +36,16 @@ type CreateInput struct {
 	CreatedBy       *string
 }
 
+type BulkCreateItem struct {
+	Input  CreateInput
+	Doc    docEntity.Document
+	Replay bool
+	Err    error
+}
+
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (docEntity.Document, bool, error)
+	BulkCreate(ctx context.Context, inputs []CreateInput) []BulkCreateItem
 	GetByID(ctx context.Context, id int64, tenantID *string) (docEntity.Document, error)
 	Patch(ctx context.Context, d docEntity.Document) (docEntity.Document, error)
 	GetByRequestID(ctx context.Context, requestID string, tenantID *string) (docEntity.Document, error)
@@ -46,16 +54,23 @@ type Service interface {
 	Retry(ctx context.Context, id int64, tenantID *string) (docEntity.Document, error)
 	SoftDelete(ctx context.Context, id int64, tenantID *string) error
 	DownloadURL(ctx context.Context, id int64, tenantID *string) (string, error)
+	Preview(ctx context.Context, templateID, versionID int64, tenantID *string, payload map[string]any) ([]byte, string, error)
+}
+
+// StorageProvider abstraksi storage untuk usecase layer.
+type StorageProvider interface {
+	PresignedURL(ctx context.Context, path string, ttl time.Duration) (string, error)
 }
 
 type service struct {
-	docs          docrepo.DocumentsRepository
-	templates     tplrepo.DocumentTemplatesRepository
-	versions      verrepo.DocumentTemplateVersionsRepository
-	txManager     begin.BeginRepository
-	publisher     DocumentEventPublisher
-	selector      GeneratorSelector
-	stateMachine  states.IDocumentStateMachineFactory
+	docs         docrepo.DocumentsRepository
+	templates    tplrepo.DocumentTemplatesRepository
+	versions     verrepo.DocumentTemplateVersionsRepository
+	txManager    begin.BeginRepository
+	publisher    DocumentEventPublisher
+	selector     GeneratorSelector
+	stateMachine states.IDocumentStateMachineFactory
+	storage      StorageProvider
 }
 
 func NewService(
@@ -65,6 +80,8 @@ func NewService(
 	tx begin.BeginRepository,
 	publisher DocumentEventPublisher,
 	selector GeneratorSelector,
+	storageProv StorageProvider,
+	_ string, // hmacSecret reserved — used by callback service
 ) Service {
 	if publisher == nil {
 		publisher = NoopDocumentPublisher()
@@ -80,6 +97,7 @@ func NewService(
 		publisher:    publisher,
 		selector:     selector,
 		stateMachine: smFactory,
+		storage:      storageProv,
 	}
 }
 
@@ -179,6 +197,16 @@ func (s *service) Create(ctx context.Context, in CreateInput) (docEntity.Documen
 	return created, false, nil
 }
 
+// BulkCreate membuat banyak dokumen sekaligus. Tiap item diproses independen; error satu item tidak menghentikan item lain.
+func (s *service) BulkCreate(ctx context.Context, inputs []CreateInput) []BulkCreateItem {
+	results := make([]BulkCreateItem, len(inputs))
+	for i, in := range inputs {
+		doc, replay, err := s.Create(ctx, in)
+		results[i] = BulkCreateItem{Input: in, Doc: doc, Replay: replay, Err: err}
+	}
+	return results
+}
+
 func (s *service) GetByID(ctx context.Context, id int64, tenantID *string) (docEntity.Document, error) {
 	d, err := s.docs.GetByID(ctx, nil, id, tenantID)
 	return d, mapRepoErr(err)
@@ -198,7 +226,27 @@ func (s *service) Patch(ctx context.Context, patch docEntity.Document) (docEntit
 	if err != nil {
 		return docEntity.Document{}, err
 	}
-	return s.docs.Update(ctx, nil, result)
+	saved, err := s.docs.Update(ctx, nil, result)
+	if err != nil {
+		return docEntity.Document{}, err
+	}
+	s.publishStatusEvent(ctx, saved)
+	return saved, nil
+}
+
+func (s *service) publishStatusEvent(ctx context.Context, d docEntity.Document) {
+	var err error
+	switch d.Status {
+	case enums.DocumentStatusGenerated:
+		err = s.publisher.PublishDocumentGenerated(ctx, d)
+	case enums.DocumentStatusFailed:
+		err = s.publisher.PublishDocumentFailed(ctx, d)
+	case enums.DocumentStatusCancelled:
+		err = s.publisher.PublishDocumentCancelled(ctx, d)
+	}
+	if err != nil {
+		log.Printf("documents: publish %s event: %v", d.Status, err)
+	}
 }
 
 // mergeDocumentPatch menggabungkan field patch ke dokumen existing.
@@ -257,7 +305,14 @@ func (s *service) Cancel(ctx context.Context, id int64, tenantID *string) (docEn
 	if err != nil {
 		return docEntity.Document{}, err
 	}
-	return s.docs.Update(ctx, nil, result)
+	saved, err := s.docs.Update(ctx, nil, result)
+	if err != nil {
+		return docEntity.Document{}, err
+	}
+	if pubErr := s.publisher.PublishDocumentCancelled(ctx, saved); pubErr != nil {
+		log.Printf("documents: PublishDocumentCancelled: %v", pubErr)
+	}
+	return saved, nil
 }
 
 func (s *service) Retry(ctx context.Context, id int64, tenantID *string) (docEntity.Document, error) {
@@ -294,7 +349,37 @@ func (s *service) DownloadURL(ctx context.Context, id int64, tenantID *string) (
 	if d.FilePath == nil || strings.TrimSpace(*d.FilePath) == "" {
 		return "", apperror.ErrNotFound
 	}
+	if s.storage != nil {
+		url, err := s.storage.PresignedURL(ctx, *d.FilePath, 15*time.Minute)
+		if err != nil {
+			return "", err
+		}
+		return url, nil
+	}
 	return *d.FilePath, nil
+}
+
+// Preview merender template version dengan payload yang diberikan tanpa menyimpan ke DB.
+func (s *service) Preview(ctx context.Context, templateID, versionID int64, tenantID *string, payload map[string]any) ([]byte, string, error) {
+	tpl, err := s.templates.GetByID(ctx, nil, templateID, tenantID)
+	if err != nil {
+		return nil, "", mapRepoErr(err)
+	}
+	ver, err := s.versions.GetByID(ctx, nil, templateID, versionID, tenantID)
+	if err != nil {
+		return nil, "", mapRepoErr(err)
+	}
+	if len(ver.Schema) > 0 {
+		if err := validators.ValidateSchema(ver.Schema, payload); err != nil {
+			return nil, "", err
+		}
+	}
+	gen := s.selector.Select(string(ver.OutputFormat), string(tpl.Engine))
+	data, contentType, err := gen.Generate(ctx, ver.Content, payload)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, contentType, nil
 }
 
 func mapRepoErr(err error) error {

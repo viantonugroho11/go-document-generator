@@ -3,6 +3,9 @@ package documentcallbackattempts
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -32,16 +35,18 @@ type Service interface {
 }
 
 type service struct {
-	attempts cbrepo.DocumentCallbackAttemptsRepository
-	docs     docrepo.DocumentsRepository
-	client   *http.Client
+	attempts   cbrepo.DocumentCallbackAttemptsRepository
+	docs       docrepo.DocumentsRepository
+	client     *http.Client
+	hmacSecret string
 }
 
-func NewService(attempts cbrepo.DocumentCallbackAttemptsRepository, docs docrepo.DocumentsRepository) Service {
+func NewService(attempts cbrepo.DocumentCallbackAttemptsRepository, docs docrepo.DocumentsRepository, hmacSecret string) Service {
 	return &service{
-		attempts: attempts,
-		docs:     docs,
-		client:   &http.Client{Timeout: 15 * time.Second},
+		attempts:   attempts,
+		docs:       docs,
+		client:     &http.Client{Timeout: 15 * time.Second},
+		hmacSecret: hmacSecret,
 	}
 }
 
@@ -67,6 +72,9 @@ func (s *service) TestCallback(ctx context.Context, in TestCallbackInput) (TestC
 		return TestCallbackResult{Success: false, ErrorMessage: err.Error()}, nil
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if s.hmacSecret != "" {
+		req.Header.Set("X-Document-Signature", computeHMAC(body, s.hmacSecret))
+	}
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -84,6 +92,12 @@ func (s *service) TestCallback(ctx context.Context, in TestCallbackInput) (TestC
 		result.ErrorMessage = resp.Status
 	}
 	return result, nil
+}
+
+func computeHMAC(body []byte, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	return "hmac-sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
 
 func mapRepoErr(err error) error {

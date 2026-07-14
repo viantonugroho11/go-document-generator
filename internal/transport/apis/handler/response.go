@@ -8,6 +8,7 @@ import (
 	"go-document-generator/internal/shared/apperror"
 )
 
+
 func writeError(c echo.Context, err error) error {
 	switch {
 	case errors.Is(err, apperror.ErrNotFound):

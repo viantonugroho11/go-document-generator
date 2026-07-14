@@ -201,3 +201,26 @@ func CallbackFromEntity(a cbEntity.CallbackAttempt) CallbackAttemptResponse {
 		ErrorMessage: a.ErrorMessage, AttemptedAt: a.AttemptedAt,
 	}
 }
+
+// --- Bulk Create ---
+
+type BulkCreateDocumentRequest struct {
+	Items []CreateDocumentRequest `json:"items"`
+}
+
+type BulkCreateDocumentItemResponse struct {
+	RequestID string                     `json:"request_id"`
+	Replay    bool                       `json:"replay,omitempty"`
+	Doc       *GeneratedDocumentResponse `json:"doc,omitempty"`
+	Error     string                     `json:"error,omitempty"`
+}
+
+type BulkCreateDocumentResponse struct {
+	Items []BulkCreateDocumentItemResponse `json:"items"`
+}
+
+// --- Preview ---
+
+type PreviewDocumentRequest struct {
+	Payload map[string]any `json:"payload"`
+}

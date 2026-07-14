@@ -1,6 +1,8 @@
 package documents
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	"go-document-generator/internal/infrastructure/documents/csv"
@@ -21,8 +23,7 @@ func (s *Selector) Select(outputFormat string, engine string) usecasedoc.Generat
 	case "HTML":
 		return html.NewGenerator()
 	case "DOCX":
-		// DOCX belum diimplementasikan; fallback ke HTML template output.
-		return html.NewGenerator()
+		return &unsupportedGenerator{format: "DOCX"}
 	default:
 		switch strings.ToUpper(engine) {
 		case "HTML":
@@ -31,4 +32,12 @@ func (s *Selector) Select(outputFormat string, engine string) usecasedoc.Generat
 			return csv.NewCSVGenerator()
 		}
 	}
+}
+
+type unsupportedGenerator struct {
+	format string
+}
+
+func (g *unsupportedGenerator) Generate(_ context.Context, _ string, _ any) ([]byte, string, error) {
+	return nil, "", fmt.Errorf("output format %q not yet supported", g.format)
 }

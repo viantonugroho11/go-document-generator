@@ -2,6 +2,7 @@ package transitions
 
 import (
 	"context"
+	"time"
 
 	tplrepo "go-document-generator/internal/repository/documenttemplates"
 	verrepo "go-document-generator/internal/repository/documenttemplateversions"
@@ -17,9 +18,16 @@ type GeneratorSelector interface {
 	Select(outputFormat string, engine string) Generator
 }
 
+// StorageProvider abstraksi penyimpanan file (sama signature dengan shared/storage.Provider).
+type StorageProvider interface {
+	Save(ctx context.Context, documentID int64, requestID, ext string, data []byte) (path, fileName string, err error)
+	PresignedURL(ctx context.Context, path string, ttl time.Duration) (string, error)
+}
+
 // Deps dependensi untuk handler transisi status dokumen.
 type Deps struct {
 	Templates tplrepo.DocumentTemplatesRepository
 	Versions  verrepo.DocumentTemplateVersionsRepository
 	Selector  GeneratorSelector
+	Storage   StorageProvider
 }

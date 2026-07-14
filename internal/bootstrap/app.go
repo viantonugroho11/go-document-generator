@@ -15,6 +15,12 @@ func RunApp() error {
 	sqlDB, _ := db.DB()
 	defer sqlDB.Close()
 
+	redisClient, err := initRedis()
+	if err != nil {
+		return err
+	}
+	defer redisClient.Close()
+
 	var cleanups []func()
 	services := apis.Services{}
 
@@ -25,7 +31,7 @@ func RunApp() error {
 	cleanups = append(cleanups, closeUser)
 	services.Users = userService
 
-	docServices, closeDoc, err := wireDocumentServices(db)
+	docServices, closeDoc, err := wireDocumentServices(db, redisClient)
 	if err != nil {
 		for _, fn := range cleanups {
 			fn()
@@ -44,12 +50,6 @@ func RunApp() error {
 			fn()
 		}
 	}()
-
-	redisClient, err := initRedis()
-	if err != nil {
-		return err
-	}
-	defer redisClient.Close()
 
 	e := newEcho(services)
 	return runHTTP(e)

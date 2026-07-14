@@ -56,16 +56,28 @@ func generateAndFinalize(ctx context.Context, deps Deps, d *docEntity.Document) 
 	}
 
 	ext := storage.ExtensionForFormat(string(d.OutputFormat))
-	path, fileName, err := storage.SaveDocument("", d.ID, d.RequestID, ext, data)
-	if err != nil {
-		return fmt.Errorf("save document file: %w", err)
+
+	var path, fileName string
+	var storageProvider enums.StorageProvider
+	if deps.Storage != nil {
+		path, fileName, err = deps.Storage.Save(ctx, d.ID, d.RequestID, ext, data)
+		if err != nil {
+			return fmt.Errorf("save document file: %w", err)
+		}
+		storageProvider = enums.StorageProviderMinio
+	} else {
+		path, fileName, err = storage.SaveDocument("", d.ID, d.RequestID, ext, data)
+		if err != nil {
+			return fmt.Errorf("save document file: %w", err)
+		}
+		storageProvider = enums.StorageProviderLocal
 	}
 
 	sum := sha256.Sum256(data)
 	chk := hex.EncodeToString(sum[:])
 	size := int64(len(data))
 	now := time.Now().UTC()
-	provider := enums.StorageProviderLocal
+	provider := storageProvider
 
 	d.Status = enums.DocumentStatusGenerated
 	d.FilePath = &path

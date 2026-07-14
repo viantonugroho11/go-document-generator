@@ -2,6 +2,7 @@ package documents
 
 import (
 	"context"
+	"log"
 
 	docEntity "go-document-generator/internal/entity/documents"
 	"go-document-generator/internal/entity/enums"
@@ -17,6 +18,9 @@ func (s *service) applyStateMachine(ctx context.Context, existing docEntity.Docu
 	if err != nil {
 		if result.Status == enums.DocumentStatusFailed {
 			if saved, updErr := s.docs.Update(ctx, nil, result); updErr == nil {
+				if pubErr := s.publisher.PublishDocumentFailed(ctx, saved); pubErr != nil {
+					log.Printf("documents: PublishDocumentFailed: %v", pubErr)
+				}
 				return saved, err
 			}
 		}

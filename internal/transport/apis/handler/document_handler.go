@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"go-document-generator/internal/entity/enums"
 	docrepo "go-document-generator/internal/repository/documents"
+	"go-document-generator/internal/shared/apperror"
 	"go-document-generator/internal/shared/pagination"
 	"go-document-generator/internal/shared/tenant"
 	"go-document-generator/internal/transport/apis/dto"
@@ -211,4 +212,56 @@ func (h *DocumentHandler) ListCallbackAttempts(c echo.Context) error {
 		data[i] = dto.CallbackFromEntity(a)
 	}
 	return c.JSON(http.StatusOK, dto.CallbackAttemptListResponse{Data: data, Meta: dto.MetaFrom(meta)})
+}
+
+const maxBulkItems = 100
+
+func (h *DocumentHandler) Preview(c echo.Context) error {
+	headerTenant, err := tenant.FromEcho(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	templateID, _ := strconv.ParseInt(c.Param("template_id"), 10, 64)
+	versionID, _ := strconv.ParseInt(c.Param("version_id"), 10, 64)
+
+	var req dto.PreviewDocumentRequest
+	if err := c.Bind(&req); err != nil {
+		return writeError(c, err)
+	}
+	data, contentType, err := h.docs.Preview(c.Request().Context(), templateID, versionID, headerTenant, req.Payload)
+	if err != nil {
+		return writeError(c, err)
+	}
+	return c.Blob(http.StatusOK, contentType, data)
+}
+
+func (h *DocumentHandler) BulkCreate(c echo.Context) error {
+	headerTenant, err := tenant.FromEcho(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	var req dto.BulkCreateDocumentRequest
+	if err := c.Bind(&req); err != nil {
+		return writeError(c, err)
+	}
+	if len(req.Items) == 0 || len(req.Items) > maxBulkItems {
+		return writeError(c, apperror.ErrInvalidInput)
+	}
+	inputs := make([]ucDoc.CreateInput, len(req.Items))
+	for i, item := range req.Items {
+		inputs[i] = item.ToInput(headerTenant)
+	}
+	results := h.docs.BulkCreate(c.Request().Context(), inputs)
+	resp := dto.BulkCreateDocumentResponse{Items: make([]dto.BulkCreateDocumentItemResponse, len(results))}
+	for i, r := range results {
+		item := dto.BulkCreateDocumentItemResponse{RequestID: r.Input.RequestID, Replay: r.Replay}
+		if r.Err != nil {
+			item.Error = r.Err.Error()
+		} else {
+			d := dto.DocumentFromEntity(r.Doc)
+			item.Doc = &d
+		}
+		resp.Items[i] = item
+	}
+	return c.JSON(http.StatusMultiStatus, resp)
 }
