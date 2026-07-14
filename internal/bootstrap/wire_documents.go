@@ -8,6 +8,8 @@ import (
 	documentsinfra "go-document-generator/internal/infrastructure/documents"
 	kafkainfra "go-document-generator/internal/infrastructure/broker/kafka"
 	miniostg "go-document-generator/internal/infrastructure/storage/minio"
+	ossstg  "go-document-generator/internal/infrastructure/storage/oss"
+	s3stg   "go-document-generator/internal/infrastructure/storage/s3"
 	beginpg "go-document-generator/internal/repository/begin/postgres"
 	cbpg "go-document-generator/internal/repository/documentcallbackattempts/postgres"
 	logpg "go-document-generator/internal/repository/documentrenderlogs/postgres"
@@ -137,16 +139,34 @@ func wireDocumentServices(db *gorm.DB, redis *goredis.Client) (apis.Services, fu
 	)
 	selector := documentsinfra.NewSelector()
 
-	// Storage provider: MinIO jika endpoint dikonfigurasi, fallback local.
+	// Storage provider dipilih berdasarkan config storage.provider.
+	// Semua cloud provider (minio, s3, oss) butuh endpoint + credentials.
 	var storageProvider sharedStorage.Provider
-	if c.Storage.Endpoint != "" && strings.ToLower(c.Storage.Provider) == "minio" {
-		sp, spErr := miniostg.NewProvider(
-			c.Storage.Endpoint, c.Storage.AccessKey, c.Storage.SecretKey,
-			c.Storage.Bucket, c.Storage.UseSSL,
-		)
+	if c.Storage.Endpoint != "" {
+		var sp sharedStorage.Provider
+		var spErr error
+		switch strings.ToLower(c.Storage.Provider) {
+		case "s3", "aws":
+			sp, spErr = s3stg.NewProvider(
+				c.Storage.Endpoint, c.Storage.AccessKey, c.Storage.SecretKey,
+				c.Storage.Bucket, c.Storage.UseSSL,
+			)
+		case "oss", "alibaba":
+			sp, spErr = ossstg.NewProvider(
+				c.Storage.Endpoint, c.Storage.AccessKey, c.Storage.SecretKey,
+				c.Storage.Bucket, c.Storage.UseSSL,
+			)
+		case "minio":
+			sp, spErr = miniostg.NewProvider(
+				c.Storage.Endpoint, c.Storage.AccessKey, c.Storage.SecretKey,
+				c.Storage.Bucket, c.Storage.UseSSL,
+			)
+		default:
+			log.Printf("wire: storage provider %q tidak dikenal, fallback local", c.Storage.Provider)
+		}
 		if spErr != nil {
-			log.Printf("wire: minio init failed, fallback local: %v", spErr)
-		} else {
+			log.Printf("wire: storage %s init failed, fallback local: %v", c.Storage.Provider, spErr)
+		} else if sp != nil {
 			storageProvider = sp
 		}
 	}

@@ -23,10 +23,37 @@ redisaddr: "redis:6379"
 redispassword: ""
 redisdb: "0"
 
-# Storage (provider: local | minio)
+# Storage
+# provider: local | minio | s3 | aws | oss | alibaba
+#
+# Contoh AWS S3:
+#   storageprovider: "s3"
+#   storageendpoint: "s3.ap-southeast-1.amazonaws.com"
+#   storageregion:   "ap-southeast-1"
+#   storageaccesskey: "<AWS_ACCESS_KEY_ID>"
+#   storagesecretkey: "<AWS_SECRET_ACCESS_KEY>"
+#   storagebucket:   "my-documents"
+#   storageusessl:   true
+#
+# Contoh Alibaba OSS (aktifkan S3-compatible API di console terlebih dahulu):
+#   storageprovider: "oss"
+#   storageendpoint: "oss-ap-southeast-5.aliyuncs.com"
+#   storageaccesskey: "<OSS_ACCESS_KEY_ID>"
+#   storagesecretkey: "<OSS_ACCESS_KEY_SECRET>"
+#   storagebucket:   "my-documents"
+#   storageusessl:   true
+#
+# Contoh MinIO lokal:
+#   storageprovider: "minio"
+#   storageendpoint: "localhost:9000"
+#   storageaccesskey: "minioadmin"
+#   storagesecretkey: "minioadmin"
+#   storagebucket:   "documents"
+#   storageusessl:   false
 storageprovider: "local"
 storagebasedir: "./storage/documents"
 storageendpoint: ""
+storageregion: ""
 storageaccesskey: ""
 storagesecretkey: ""
 storagebucket: "documents"

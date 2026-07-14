@@ -14,7 +14,9 @@ usecase/documents.StorageProvider  ← subset interface (PresignedURL, Download,
 shared/storage.Provider            ← interface lengkap (+ Save, ProviderName)
          │
          ├── localProvider          ← disk lokal (dev)
-         ├── minio.provider         ← MinIO / S3-compatible (prod)
+         ├── minio.provider         ← MinIO self-hosted
+         ├── s3.provider            ← AWS S3 (wrapper minio-go)
+         ├── oss.provider           ← Alibaba Cloud OSS (wrapper minio-go, S3-compatible)
          └── gcs.provider           ← Google Cloud Storage (belum diimplementasi, lihat bawah)
 ```
 
@@ -90,6 +92,64 @@ import "github.com/pdfcpu/pdfcpu/pkg/api"
 // Merge PDF dari file paths
 err := api.MergeCreateFile(srcPaths, destPath, conf)
 ```
+
+---
+
+## AWS S3 Provider
+
+minio-go mendukung S3 API natively — provider S3 di sini adalah thin wrapper yang hanya mengubah `ProviderName()`.
+
+**Config**:
+```yaml
+storageprovider: "s3"
+storageendpoint: "s3.ap-southeast-1.amazonaws.com"
+storageregion:   "ap-southeast-1"
+storageaccesskey: "<AWS_ACCESS_KEY_ID>"
+storagesecretkey: "<AWS_SECRET_ACCESS_KEY>"
+storagebucket:   "my-documents"
+storageusessl:   true
+```
+
+Atau via environment variable:
+```
+STORAGE_PROVIDER=s3
+STORAGE_ENDPOINT=s3.ap-southeast-1.amazonaws.com
+STORAGE_ACCESS_KEY=AKIA...
+STORAGE_SECRET_KEY=...
+STORAGE_BUCKET=my-documents
+STORAGE_USE_SSL=true
+```
+
+### Compose di AWS S3
+`ComposeObject` minio-go menggunakan `CreateMultipartUpload` + `UploadPartCopy` di belakangnya — server-side, tidak ada data yang turun ke server aplikasi.
+
+Batas: per bagian minimal **5 MB** (kecuali bagian terakhir). File kecil (<5 MB) akan fallback ke copy biasa secara otomatis oleh minio-go.
+
+---
+
+## Alibaba Cloud OSS Provider
+
+OSS menyediakan S3-compatible API. Aktifkan di console: **Bucket → Basic Settings → S3-compatible endpoint**.
+
+**Config**:
+```yaml
+storageprovider: "oss"
+storageendpoint: "oss-ap-southeast-5.aliyuncs.com"
+storageaccesskey: "<OSS_ACCESS_KEY_ID>"
+storagesecretkey: "<OSS_ACCESS_KEY_SECRET>"
+storagebucket:   "my-documents"
+storageusessl:   true
+```
+
+### Perbedaan OSS vs S3
+| Fitur | AWS S3 | Alibaba OSS |
+|-------|--------|-------------|
+| ComposeObject | UploadPartCopy | AppendObject / CopyObject |
+| Max compose parts | 10.000 | 1.000 |
+| Presigned URL TTL max | 7 hari | 32.400 detik (9 jam) |
+| Path-style URL | Opsional | Default |
+
+> OSS presigned URL lebih pendek TTL-nya. Sesuaikan jika perlu TTL panjang.
 
 ---
 
@@ -240,5 +300,7 @@ Saat ini `Compose` untuk local dan MinIO melakukan byte concat, yang **tidak men
    ```go
    case "gcs":
        sp, spErr = gcsstg.NewProvider(c.Storage.Bucket, c.Storage.CredentialsFile)
+   case "azure":
+       sp, spErr = azurestg.NewProvider(c.Storage.Endpoint, c.Storage.AccessKey, c.Storage.Bucket)
    ```
 5. Tambahkan config key di `configs/config.yaml` dan `internal/config/storage.go`

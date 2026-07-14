@@ -1,15 +1,16 @@
 package config
 
 // Storage konfigurasi provider penyimpanan file dokumen.
+// Provider yang didukung: "local", "minio", "s3" / "aws", "oss" / "alibaba", "gcs"
 type Storage struct {
-	// Provider: "local", "minio", "s3", "gcs"
 	Provider  string `json:"provider"`
-	BaseDir   string `json:"base_dir"`   // untuk local
-	Endpoint  string `json:"endpoint"`   // untuk minio/s3
-	AccessKey string `json:"access_key"`
-	SecretKey string `json:"secret_key"`
+	BaseDir   string `json:"base_dir"`   // local: direktori dokumen
+	Endpoint  string `json:"endpoint"`   // cloud: hostname tanpa protokol
+	Region    string `json:"region"`     // aws s3: region, contoh "ap-southeast-1"
+	AccessKey string `json:"access_key"` // aws: Access Key ID; alibaba: AccessKeyId
+	SecretKey string `json:"secret_key"` // aws: Secret Access Key; alibaba: AccessKeySecret
 	Bucket    string `json:"bucket"`
-	UseSSL    bool   `json:"use_ssl"`
+	UseSSL    bool   `json:"use_ssl"`    // true untuk production cloud
 }
 
 // Auth konfigurasi autentikasi API.
