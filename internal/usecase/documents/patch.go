@@ -18,8 +18,8 @@ func (s *service) applyStateMachine(ctx context.Context, existing docEntity.Docu
 	if err != nil {
 		if result.Status == enums.DocumentStatusFailed {
 			if saved, updErr := s.docs.Update(ctx, nil, result); updErr == nil {
-				if pubErr := s.publisher.PublishDocumentFailed(ctx, saved); pubErr != nil {
-					log.Printf("documents: PublishDocumentFailed: %v", pubErr)
+				if pubErr := s.publisher.PublishDocumentEvent(ctx, "UPDATE", &existing, &saved); pubErr != nil {
+					log.Printf("documents: PublishDocumentEvent FAILED: %v", pubErr)
 				}
 				return saved, err
 			}

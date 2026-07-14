@@ -203,8 +203,8 @@ func (s *service) Create(ctx context.Context, in CreateInput) (docEntity.Documen
 	if err = s.txManager.Commit(ctx, tx); err != nil {
 		return docEntity.Document{}, false, err
 	}
-	if pubErr := s.publisher.PublishDocumentQueued(ctx, created); pubErr != nil {
-		log.Printf("documents: PublishDocumentQueued: %v", pubErr)
+	if pubErr := s.publisher.PublishDocumentEvent(ctx, "CREATE", nil, &created); pubErr != nil {
+		log.Printf("documents: PublishDocumentEvent CREATE: %v", pubErr)
 	}
 	if pubErr := s.publisher.PublishDocumentProcess(ctx, created); pubErr != nil {
 		log.Printf("documents: PublishDocumentProcess: %v", pubErr)
@@ -264,22 +264,13 @@ func (s *service) Patch(ctx context.Context, patch docEntity.Document) (docEntit
 	if err != nil {
 		return docEntity.Document{}, err
 	}
-	s.publishStatusEvent(ctx, saved)
+	s.publishStatusEvent(ctx, existing, saved)
 	return saved, nil
 }
 
-func (s *service) publishStatusEvent(ctx context.Context, d docEntity.Document) {
-	var err error
-	switch d.Status {
-	case enums.DocumentStatusGenerated:
-		err = s.publisher.PublishDocumentGenerated(ctx, d)
-	case enums.DocumentStatusFailed:
-		err = s.publisher.PublishDocumentFailed(ctx, d)
-	case enums.DocumentStatusCancelled:
-		err = s.publisher.PublishDocumentCancelled(ctx, d)
-	}
-	if err != nil {
-		log.Printf("documents: publish %s event: %v", d.Status, err)
+func (s *service) publishStatusEvent(ctx context.Context, before, after docEntity.Document) {
+	if err := s.publisher.PublishDocumentEvent(ctx, "UPDATE", &before, &after); err != nil {
+		log.Printf("documents: publishStatusEvent %s: %v", after.Status, err)
 	}
 }
 
@@ -343,8 +334,8 @@ func (s *service) Cancel(ctx context.Context, id int64, tenantID *string) (docEn
 	if err != nil {
 		return docEntity.Document{}, err
 	}
-	if pubErr := s.publisher.PublishDocumentCancelled(ctx, saved); pubErr != nil {
-		log.Printf("documents: PublishDocumentCancelled: %v", pubErr)
+	if pubErr := s.publisher.PublishDocumentEvent(ctx, "UPDATE", &existing, &saved); pubErr != nil {
+		log.Printf("documents: Cancel publish: %v", pubErr)
 	}
 	return saved, nil
 }
@@ -362,8 +353,8 @@ func (s *service) Retry(ctx context.Context, id int64, tenantID *string) (docEnt
 	if err != nil {
 		return docEntity.Document{}, err
 	}
-	if pubErr := s.publisher.PublishDocumentRetried(ctx, updated); pubErr != nil {
-		log.Printf("documents: PublishDocumentRetried: %v", pubErr)
+	if pubErr := s.publisher.PublishDocumentEvent(ctx, "UPDATE", &existing, &updated); pubErr != nil {
+		log.Printf("documents: Retry publish: %v", pubErr)
 	}
 	if pubErr := s.publisher.PublishDocumentProcess(ctx, updated); pubErr != nil {
 		log.Printf("documents: PublishDocumentProcess (retry): %v", pubErr)
@@ -449,8 +440,8 @@ func (s *service) Process(ctx context.Context, id int64, tenantID *string) error
 	if err != nil {
 		return err
 	}
-	if pubErr := s.publisher.PublishDocumentGenerated(ctx, saved); pubErr != nil {
-		log.Printf("documents: Process: PublishDocumentGenerated: %v", pubErr)
+	if pubErr := s.publisher.PublishDocumentEvent(ctx, "UPDATE", &doc, &saved); pubErr != nil {
+		log.Printf("documents: Process: publish generated: %v", pubErr)
 	}
 	return nil
 }
@@ -494,8 +485,8 @@ func (s *service) ZipDocuments(ctx context.Context, ids []int64, tenantID *strin
 	if err != nil {
 		return "", err
 	}
-	if pubErr := s.publisher.PublishDocumentsZipped(ctx, ids, tenantID, path, "zip"); pubErr != nil {
-		log.Printf("documents: PublishDocumentsZipped: %v", pubErr)
+	if pubErr := s.publisher.PublishDocumentBulkEvent(ctx, "DocumentZip", ids, tenantID, path, "zip"); pubErr != nil {
+		log.Printf("documents: PublishDocumentBulkEvent zip: %v", pubErr)
 	}
 	return url, nil
 }
@@ -539,8 +530,8 @@ func (s *service) MergeDocuments(ctx context.Context, ids []int64, tenantID *str
 	if err != nil {
 		return "", err
 	}
-	if pubErr := s.publisher.PublishDocumentsMerged(ctx, ids, tenantID, path, string(format)); pubErr != nil {
-		log.Printf("documents: PublishDocumentsMerged: %v", pubErr)
+	if pubErr := s.publisher.PublishDocumentBulkEvent(ctx, "DocumentMerge", ids, tenantID, path, string(format)); pubErr != nil {
+		log.Printf("documents: PublishDocumentBulkEvent merge: %v", pubErr)
 	}
 	return url, nil
 }

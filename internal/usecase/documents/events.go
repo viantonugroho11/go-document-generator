@@ -6,30 +6,31 @@ import (
 	docEntity "go-document-generator/internal/entity/documents"
 )
 
+// DocumentEventPublisher port untuk mempublikasikan event dokumen ke message broker.
 type DocumentEventPublisher interface {
-	// Observability events (document-events topic)
-	PublishDocumentQueued(ctx context.Context, d docEntity.Document) error
-	PublishDocumentRetried(ctx context.Context, d docEntity.Document) error
-	PublishDocumentGenerated(ctx context.Context, d docEntity.Document) error
-	PublishDocumentFailed(ctx context.Context, d docEntity.Document) error
-	PublishDocumentCancelled(ctx context.Context, d docEntity.Document) error
-	PublishDocumentsZipped(ctx context.Context, ids []int64, tenantID *string, zipPath, outputFormat string) error
-	PublishDocumentsMerged(ctx context.Context, ids []int64, tenantID *string, mergedPath, outputFormat string) error
+	// PublishDocumentEvent mengirim lifecycle event dokumen ke topic document-events.
+	// action "CREATE" = before nil (dokumen baru).
+	// action "UPDATE" = before berisi state sebelumnya.
+	PublishDocumentEvent(ctx context.Context, action string, before, after *docEntity.Document) error
 
-	// Processing trigger (document-process topic)
-	// Dipanggil setiap kali dokumen perlu dirender: saat Create dan saat Retry.
+	// PublishDocumentBulkEvent mengirim event operasi zip / merge ke topic document-events.
+	// resource = "DocumentZip" atau "DocumentMerge".
+	PublishDocumentBulkEvent(ctx context.Context, resource string, ids []int64, tenantID *string, outputPath, outputFormat string) error
+
+	// PublishDocumentProcess memicu generation worker via topic document-process.
 	PublishDocumentProcess(ctx context.Context, d docEntity.Document) error
 }
 
 type noopDocumentPublisher struct{}
 
-func (noopDocumentPublisher) PublishDocumentQueued(context.Context, docEntity.Document) error    { return nil }
-func (noopDocumentPublisher) PublishDocumentRetried(context.Context, docEntity.Document) error   { return nil }
-func (noopDocumentPublisher) PublishDocumentGenerated(context.Context, docEntity.Document) error { return nil }
-func (noopDocumentPublisher) PublishDocumentFailed(context.Context, docEntity.Document) error    { return nil }
-func (noopDocumentPublisher) PublishDocumentCancelled(context.Context, docEntity.Document) error { return nil }
-func (noopDocumentPublisher) PublishDocumentsZipped(context.Context, []int64, *string, string, string) error { return nil }
-func (noopDocumentPublisher) PublishDocumentsMerged(context.Context, []int64, *string, string, string) error { return nil }
-func (noopDocumentPublisher) PublishDocumentProcess(context.Context, docEntity.Document) error  { return nil }
+func (noopDocumentPublisher) PublishDocumentEvent(context.Context, string, *docEntity.Document, *docEntity.Document) error {
+	return nil
+}
+func (noopDocumentPublisher) PublishDocumentBulkEvent(context.Context, string, []int64, *string, string, string) error {
+	return nil
+}
+func (noopDocumentPublisher) PublishDocumentProcess(context.Context, docEntity.Document) error {
+	return nil
+}
 
 func NoopDocumentPublisher() DocumentEventPublisher { return noopDocumentPublisher{} }
