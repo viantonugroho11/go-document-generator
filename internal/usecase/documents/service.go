@@ -196,12 +196,31 @@ func (s *service) Create(ctx context.Context, in CreateInput) (docEntity.Documen
 	return created, false, nil
 }
 
-// BulkCreate membuat banyak dokumen sekaligus. Tiap item diproses independen; error satu item tidak menghentikan item lain.
+const bulkWorkers = 10
+
+// BulkCreate membuat banyak dokumen secara konkuren (maks bulkWorkers goroutine).
+// Tiap item diproses independen; error satu item tidak menghentikan item lain.
 func (s *service) BulkCreate(ctx context.Context, inputs []CreateInput) []BulkCreateItem {
+	type indexed struct {
+		i   int
+		res BulkCreateItem
+	}
 	results := make([]BulkCreateItem, len(inputs))
+	out := make(chan indexed, len(inputs))
+	sem := make(chan struct{}, bulkWorkers)
+
 	for i, in := range inputs {
-		doc, replay, err := s.Create(ctx, in)
-		results[i] = BulkCreateItem{Input: in, Doc: doc, Replay: replay, Err: err}
+		i, in := i, in
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem }()
+			doc, replay, err := s.Create(ctx, in)
+			out <- indexed{i: i, res: BulkCreateItem{Input: in, Doc: doc, Replay: replay, Err: err}}
+		}()
+	}
+	for range inputs {
+		r := <-out
+		results[r.i] = r.res
 	}
 	return results
 }

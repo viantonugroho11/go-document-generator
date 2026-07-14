@@ -216,7 +216,10 @@ type BulkCreateDocumentItemResponse struct {
 }
 
 type BulkCreateDocumentResponse struct {
-	Items []BulkCreateDocumentItemResponse `json:"items"`
+	Items     []BulkCreateDocumentItemResponse `json:"items"`
+	Total     int                              `json:"total"`
+	Succeeded int                              `json:"succeeded"`
+	Failed    int                              `json:"failed"`
 }
 
 // --- Preview ---

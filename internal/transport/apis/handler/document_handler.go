@@ -258,14 +258,19 @@ func (h *DocumentHandler) BulkCreate(c echo.Context) error {
 		inputs[i] = item.ToInput(headerTenant)
 	}
 	results := h.docs.BulkCreate(c.Request().Context(), inputs)
-	resp := dto.BulkCreateDocumentResponse{Items: make([]dto.BulkCreateDocumentItemResponse, len(results))}
+	resp := dto.BulkCreateDocumentResponse{
+		Items: make([]dto.BulkCreateDocumentItemResponse, len(results)),
+		Total: len(results),
+	}
 	for i, r := range results {
 		item := dto.BulkCreateDocumentItemResponse{RequestID: r.Input.RequestID, Replay: r.Replay}
 		if r.Err != nil {
 			item.Error = r.Err.Error()
+			resp.Failed++
 		} else {
 			d := dto.DocumentFromEntity(r.Doc)
 			item.Doc = &d
+			resp.Succeeded++
 		}
 		resp.Items[i] = item
 	}
