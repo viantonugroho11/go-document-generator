@@ -3,6 +3,7 @@ package documents
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	verrepo "go-document-generator/internal/repository/documenttemplateversions"
 	"go-document-generator/internal/shared/apperror"
 	"go-document-generator/internal/shared/pagination"
+	sharedStorage "go-document-generator/internal/shared/storage"
 	"go-document-generator/internal/shared/validators"
 	"go-document-generator/internal/usecase/documents/states"
 	"go-document-generator/internal/usecase/documents/transitions"
@@ -55,11 +57,19 @@ type Service interface {
 	SoftDelete(ctx context.Context, id int64, tenantID *string) error
 	DownloadURL(ctx context.Context, id int64, tenantID *string) (string, error)
 	Preview(ctx context.Context, templateID, versionID int64, tenantID *string, payload map[string]any) ([]byte, string, error)
+	// ZipDocuments mengambil file dari banyak dokumen, membuat arsip ZIP, mengembalikan URL download.
+	ZipDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error)
+	// MergeDocuments menggabungkan banyak dokumen format sama menjadi satu file, mengembalikan URL download.
+	MergeDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error)
 }
 
 // StorageProvider abstraksi storage untuk usecase layer.
 type StorageProvider interface {
 	PresignedURL(ctx context.Context, path string, ttl time.Duration) (string, error)
+	ProviderName() enums.StorageProvider
+	Download(ctx context.Context, path string) ([]byte, error)
+	Zip(ctx context.Context, documentID int64, requestID string, entries []sharedStorage.ZipEntry) (path, fileName string, err error)
+	Compose(ctx context.Context, documentID int64, requestID string, srcPaths []string, ext string) (path, fileName string, err error)
 }
 
 type service struct {
@@ -398,6 +408,82 @@ func (s *service) Preview(ctx context.Context, templateID, versionID int64, tena
 		return nil, "", err
 	}
 	return data, contentType, nil
+}
+
+// ZipDocuments mengunduh file tiap dokumen, membuat ZIP, dan mengembalikan URL download.
+func (s *service) ZipDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error) {
+	if s.storage == nil {
+		return "", errors.New("storage provider not configured")
+	}
+	if len(ids) == 0 {
+		return "", apperror.ErrInvalidInput
+	}
+	entries := make([]sharedStorage.ZipEntry, 0, len(ids))
+	for _, id := range ids {
+		d, err := s.docs.GetByID(ctx, nil, id, tenantID)
+		if err != nil {
+			return "", mapRepoErr(err)
+		}
+		if d.Status != enums.DocumentStatusGenerated || d.FilePath == nil {
+			return "", fmt.Errorf("document %d belum generated", id)
+		}
+		data, err := s.storage.Download(ctx, *d.FilePath)
+		if err != nil {
+			return "", fmt.Errorf("download document %d: %w", id, err)
+		}
+		name := fmt.Sprintf("%d", d.ID)
+		if d.FileName != nil {
+			name = *d.FileName
+		}
+		entries = append(entries, sharedStorage.ZipEntry{Name: name, Data: data})
+	}
+	reqID := label
+	if reqID == "" {
+		reqID = fmt.Sprintf("zip-%d-docs", len(ids))
+	}
+	path, _, err := s.storage.Zip(ctx, 0, reqID, entries)
+	if err != nil {
+		return "", err
+	}
+	return s.storage.PresignedURL(ctx, path, 15*time.Minute)
+}
+
+// MergeDocuments menggabungkan file dokumen berformat sama menjadi satu, mengembalikan URL download.
+// Untuk format teks (HTML, CSV): byte concat. Untuk PDF: butuh library pdfcpu — saat ini byte concat.
+func (s *service) MergeDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error) {
+	if s.storage == nil {
+		return "", errors.New("storage provider not configured")
+	}
+	if len(ids) < 2 {
+		return "", apperror.ErrInvalidInput
+	}
+	var format enums.OutputFormat
+	srcPaths := make([]string, 0, len(ids))
+	for i, id := range ids {
+		d, err := s.docs.GetByID(ctx, nil, id, tenantID)
+		if err != nil {
+			return "", mapRepoErr(err)
+		}
+		if d.Status != enums.DocumentStatusGenerated || d.FilePath == nil {
+			return "", fmt.Errorf("document %d belum generated", id)
+		}
+		if i == 0 {
+			format = d.OutputFormat
+		} else if d.OutputFormat != format {
+			return "", fmt.Errorf("document %d format %s tidak cocok dengan %s", id, d.OutputFormat, format)
+		}
+		srcPaths = append(srcPaths, *d.FilePath)
+	}
+	ext := sharedStorage.ExtensionForFormat(string(format))
+	reqID := label
+	if reqID == "" {
+		reqID = fmt.Sprintf("merge-%d-docs", len(ids))
+	}
+	path, _, err := s.storage.Compose(ctx, 0, reqID, srcPaths, ext)
+	if err != nil {
+		return "", err
+	}
+	return s.storage.PresignedURL(ctx, path, 15*time.Minute)
 }
 
 func mapRepoErr(err error) error {

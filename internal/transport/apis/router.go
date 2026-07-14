@@ -54,6 +54,8 @@ func RegisterRoutes(e *echo.Echo, svc Services) {
 	docs.GET("", docHandler.List)
 	docs.POST("", docHandler.Create)
 	docs.POST("/bulk", docHandler.BulkCreate)
+	docs.POST("/zip", docHandler.Zip)
+	docs.POST("/merge", docHandler.Merge)
 	docs.GET("/by-request/:request_id", docHandler.GetByRequestID)
 	docs.GET("/:document_id", docHandler.Get)
 	docs.PATCH("/:document_id", docHandler.Patch)

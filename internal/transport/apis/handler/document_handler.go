@@ -172,6 +172,50 @@ func (h *DocumentHandler) Retry(c echo.Context) error {
 	return c.JSON(http.StatusAccepted, dto.DocumentFromEntity(doc))
 }
 
+func (h *DocumentHandler) Zip(c echo.Context) error {
+	headerTenant, err := tenant.FromEcho(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	var req dto.ZipDocumentsRequest
+	if err := c.Bind(&req); err != nil {
+		return writeError(c, err)
+	}
+	if len(req.IDs) == 0 {
+		return writeError(c, apperror.ErrInvalidInput)
+	}
+	fileURL, err := h.docs.ZipDocuments(c.Request().Context(), req.IDs, headerTenant, req.Label)
+	if err != nil {
+		return writeError(c, err)
+	}
+	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
+		return c.File(fileURL)
+	}
+	return c.JSON(http.StatusOK, dto.DocumentURLResponse{URL: fileURL})
+}
+
+func (h *DocumentHandler) Merge(c echo.Context) error {
+	headerTenant, err := tenant.FromEcho(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	var req dto.MergeDocumentsRequest
+	if err := c.Bind(&req); err != nil {
+		return writeError(c, err)
+	}
+	if len(req.IDs) < 2 {
+		return writeError(c, apperror.ErrInvalidInput)
+	}
+	fileURL, err := h.docs.MergeDocuments(c.Request().Context(), req.IDs, headerTenant, req.Label)
+	if err != nil {
+		return writeError(c, err)
+	}
+	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
+		return c.File(fileURL)
+	}
+	return c.JSON(http.StatusOK, dto.DocumentURLResponse{URL: fileURL})
+}
+
 func (h *DocumentHandler) Download(c echo.Context) error {
 	headerTenant, err := tenant.FromEcho(c)
 	if err != nil {

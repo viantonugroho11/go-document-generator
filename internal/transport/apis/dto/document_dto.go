@@ -227,3 +227,19 @@ type BulkCreateDocumentResponse struct {
 type PreviewDocumentRequest struct {
 	Payload map[string]any `json:"payload"`
 }
+
+// --- Zip / Merge ---
+
+type ZipDocumentsRequest struct {
+	IDs   []int64 `json:"ids"`
+	Label string  `json:"label,omitempty"`
+}
+
+type MergeDocumentsRequest struct {
+	IDs   []int64 `json:"ids"`
+	Label string  `json:"label,omitempty"`
+}
+
+type DocumentURLResponse struct {
+	URL string `json:"url"`
+}
