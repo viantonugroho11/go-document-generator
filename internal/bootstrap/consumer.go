@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	ConsumerUser  = event.ConsumerNameUser
-	ConsumerOrder = event.ConsumerNameOrder
+	ConsumerUser     = event.ConsumerNameUser
+	ConsumerOrder    = event.ConsumerNameOrder
+	ConsumerDocument = event.ConsumerNameDocument
 )
 
 // RunConsumer menjalankan consumer sesuai name (user | order): config global, wiring terisolasi per consumer, run sampai signal.
@@ -63,6 +64,28 @@ func RunConsumer(name string) error {
 		consumer = c
 	case ConsumerOrder:
 		c, err := event.RunOrder(ctx, cfg)
+		if err != nil {
+			return err
+		}
+		consumer = c
+	case ConsumerDocument:
+		db, err := initDB()
+		if err != nil {
+			return err
+		}
+		sqlDB, _ := db.DB()
+		defer sqlDB.Close()
+		redisClient, err := initRedis()
+		if err != nil {
+			return err
+		}
+		defer redisClient.Close()
+		svc, cleanup, err := wireDocumentServices(db, redisClient)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		c, err := event.RunDocument(ctx, cfg, svc.Documents)
 		if err != nil {
 			return err
 		}

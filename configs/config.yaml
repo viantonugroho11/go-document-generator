@@ -17,6 +17,8 @@ kafkatopic: "user-events"
 kafkatopictemplates: "template-events"
 kafkatopictemplateversions: "template-version-events"
 kafkatopicdocuments: "document-events"
+kafkatopicdocumentprocess: "document-process"
+kafkagroupiddocumentworker: "document-generator-worker"
 
 # Redis
 redisaddr: "redis:6379"

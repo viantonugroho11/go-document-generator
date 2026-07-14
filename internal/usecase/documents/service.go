@@ -61,6 +61,9 @@ type Service interface {
 	ZipDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error)
 	// MergeDocuments menggabungkan banyak dokumen format sama menjadi satu file, mengembalikan URL download.
 	MergeDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error)
+	// Process dipanggil oleh Kafka consumer untuk menjalankan generation pipeline:
+	// QUEUED → PROCESSING → GENERATED (atau FAILED bila error).
+	Process(ctx context.Context, id int64, tenantID *string) error
 }
 
 // StorageProvider abstraksi storage untuk usecase layer.
@@ -202,6 +205,9 @@ func (s *service) Create(ctx context.Context, in CreateInput) (docEntity.Documen
 	}
 	if pubErr := s.publisher.PublishDocumentQueued(ctx, created); pubErr != nil {
 		log.Printf("documents: PublishDocumentQueued: %v", pubErr)
+	}
+	if pubErr := s.publisher.PublishDocumentProcess(ctx, created); pubErr != nil {
+		log.Printf("documents: PublishDocumentProcess: %v", pubErr)
 	}
 	return created, false, nil
 }
@@ -359,6 +365,9 @@ func (s *service) Retry(ctx context.Context, id int64, tenantID *string) (docEnt
 	if pubErr := s.publisher.PublishDocumentRetried(ctx, updated); pubErr != nil {
 		log.Printf("documents: PublishDocumentRetried: %v", pubErr)
 	}
+	if pubErr := s.publisher.PublishDocumentProcess(ctx, updated); pubErr != nil {
+		log.Printf("documents: PublishDocumentProcess (retry): %v", pubErr)
+	}
 	return updated, nil
 }
 
@@ -410,6 +419,42 @@ func (s *service) Preview(ctx context.Context, templateID, versionID int64, tena
 	return data, contentType, nil
 }
 
+// Process dijalankan oleh Kafka consumer: QUEUED → PROCESSING → GENERATED (atau FAILED).
+func (s *service) Process(ctx context.Context, id int64, tenantID *string) error {
+	doc, err := s.docs.GetByID(ctx, nil, id, tenantID)
+	if err != nil {
+		return mapRepoErr(err)
+	}
+	if doc.Status != enums.DocumentStatusQueued {
+		// Sudah diproses oleh consumer lain (at-least-once delivery) — skip.
+		return nil
+	}
+
+	// Transisi QUEUED → PROCESSING
+	processing, err := s.transitionDocument(ctx, doc, enums.DocumentStatusProcessing)
+	if err != nil {
+		return err
+	}
+	if _, err := s.docs.Update(ctx, nil, processing); err != nil {
+		return err
+	}
+
+	// Transisi PROCESSING → GENERATED (toGenerated handler melakukan render file)
+	generated, err := s.transitionDocument(ctx, processing, enums.DocumentStatusGenerated)
+	if err != nil {
+		// applyStateMachine sudah simpan status FAILED dan publish event Failed
+		return err
+	}
+	saved, err := s.docs.Update(ctx, nil, generated)
+	if err != nil {
+		return err
+	}
+	if pubErr := s.publisher.PublishDocumentGenerated(ctx, saved); pubErr != nil {
+		log.Printf("documents: Process: PublishDocumentGenerated: %v", pubErr)
+	}
+	return nil
+}
+
 // ZipDocuments mengunduh file tiap dokumen, membuat ZIP, dan mengembalikan URL download.
 func (s *service) ZipDocuments(ctx context.Context, ids []int64, tenantID *string, label string) (string, error) {
 	if s.storage == nil {
@@ -445,7 +490,14 @@ func (s *service) ZipDocuments(ctx context.Context, ids []int64, tenantID *strin
 	if err != nil {
 		return "", err
 	}
-	return s.storage.PresignedURL(ctx, path, 15*time.Minute)
+	url, err := s.storage.PresignedURL(ctx, path, 15*time.Minute)
+	if err != nil {
+		return "", err
+	}
+	if pubErr := s.publisher.PublishDocumentsZipped(ctx, ids, tenantID, path, "zip"); pubErr != nil {
+		log.Printf("documents: PublishDocumentsZipped: %v", pubErr)
+	}
+	return url, nil
 }
 
 // MergeDocuments menggabungkan file dokumen berformat sama menjadi satu, mengembalikan URL download.
@@ -483,7 +535,14 @@ func (s *service) MergeDocuments(ctx context.Context, ids []int64, tenantID *str
 	if err != nil {
 		return "", err
 	}
-	return s.storage.PresignedURL(ctx, path, 15*time.Minute)
+	url, err := s.storage.PresignedURL(ctx, path, 15*time.Minute)
+	if err != nil {
+		return "", err
+	}
+	if pubErr := s.publisher.PublishDocumentsMerged(ctx, ids, tenantID, path, string(format)); pubErr != nil {
+		log.Printf("documents: PublishDocumentsMerged: %v", pubErr)
+	}
+	return url, nil
 }
 
 func mapRepoErr(err error) error {
