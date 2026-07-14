@@ -22,10 +22,6 @@ type Services struct {
 }
 
 func RegisterRoutes(e *echo.Echo, svc Services) {
-	e.GET("/healthz", func(c echo.Context) error {
-		return c.String(200, "ok")
-	})
-
 	if svc.Users != nil {
 		userHandler := handler.NewUserHandler(svc.Users)
 		users := e.Group("/users")

@@ -21,6 +21,10 @@ func newEcho(services apis.Services) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Recover(), middleware.Logger())
+
+	// healthz sebelum auth agar liveness probe tidak butuh API key.
+	e.GET("/healthz", func(ctx echo.Context) error { return ctx.String(http.StatusOK, "ok") })
+
 	e.Use(apimiddleware.APIKeyAuth(c.Auth.APIKeys))
 	apis.RegisterRoutes(e, services)
 	return e

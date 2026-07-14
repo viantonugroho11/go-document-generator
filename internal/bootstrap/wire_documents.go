@@ -157,7 +157,7 @@ func wireDocumentServices(db *gorm.DB, redis *goredis.Client) (apis.Services, fu
 	svc := apis.Services{
 		Templates:        ucTpl.NewService(tplRepo, tx, tplPublisher),
 		TemplateVersions: ucVer.NewService(verRepo, tplRepo, tx, verPublisher),
-		Documents:        ucDoc.NewService(docRepo, tplRepo, verRepo, tx, docPublisher, selector, storageProvider, c.Callback.HMACSecret),
+		Documents:        ucDoc.NewService(docRepo, tplRepo, verRepo, tx, docPublisher, selector, storageProvider),
 		RenderLogs:       ucLog.NewService(logRepo, docRepo),
 		Callbacks:        ucCb.NewService(cbRepo, docRepo, c.Callback.HMACSecret),
 	}

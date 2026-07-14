@@ -81,7 +81,6 @@ func NewService(
 	publisher DocumentEventPublisher,
 	selector GeneratorSelector,
 	storageProv StorageProvider,
-	_ string, // hmacSecret reserved — used by callback service
 ) Service {
 	if publisher == nil {
 		publisher = NoopDocumentPublisher()
