@@ -182,9 +182,13 @@ func versionByIDKey(templateID, versionID int64, tenantID *string) string {
 	return fmt.Sprintf("ver:id:%s:%d:%d", tenantStr(tenantID), templateID, versionID)
 }
 
+const redisTimeout = 200 * time.Millisecond
+
 func getJSON[T any](ctx context.Context, r *goredis.Client, key string) (T, error) {
 	var zero T
-	val, err := r.Get(ctx, key).Bytes()
+	rctx, cancel := context.WithTimeout(ctx, redisTimeout)
+	defer cancel()
+	val, err := r.Get(rctx, key).Bytes()
 	if err != nil {
 		return zero, err
 	}
@@ -200,5 +204,7 @@ func setJSON(ctx context.Context, r *goredis.Client, key string, val any, ttl ti
 	if err != nil {
 		return err
 	}
-	return r.Set(ctx, key, b, ttl).Err()
+	rctx, cancel := context.WithTimeout(ctx, redisTimeout)
+	defer cancel()
+	return r.Set(rctx, key, b, ttl).Err()
 }
